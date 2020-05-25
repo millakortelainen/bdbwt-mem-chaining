@@ -178,7 +178,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     for(auto j: B){
       c = j.first;
       d = j.second;
-      if(a == c && b == d){ // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
+      if(a != c && b != d){ // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
 
 	cross.push_back(make_tuple(a,b,c,d));
 	if(verboseSubroutine){
@@ -194,16 +194,16 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   
   for(int k = 0; k < cross.size(); k++){
     tie(a,b,c,d) = cross[k];
-    Interval_pair i_1 = idxS.left_extend(pr.first,a);  if(i_1.reverse.size() == 0) i_1 = pr.first;
+    Interval_pair i_1 = idxS.left_extend(pr.first,a);  //if(i_1.reverse.size() == 0) i_1 = pr.first;
     if(verboseSubroutine) cout << "Extended interval " << pr.first.toString() << " to the left and got: " << i_1.toString() << "\n";
     
-    Interval_pair i_2 = idxS.right_extend(i_1,b); if(i_2.reverse.size() == 0) i_2 = i_1; 
+    Interval_pair i_2 = idxS.right_extend(i_1,b); //if(i_2.reverse.size() == 0) i_2 = i_1; 
     if(verboseSubroutine) cout << "Extended interval " << i_1.toString() << " to the right and got: " << i_2.toString() << "\n";
     
-    Interval_pair i_3 = idxT.left_extend(pr.second,c); if(i_3.reverse.size() == 0) i_3 = pr.second;
+    Interval_pair i_3 = idxT.left_extend(pr.second,c); //if(i_3.reverse.size() == 0) i_3 = pr.second;
     if(verboseSubroutine) cout << "Extended interval " << pr.second.toString() << " to the left and got: " << i_3.toString() << "\n";
     
-    Interval_pair i_4 = idxT.right_extend(i_3,d); if(i_4.reverse.size() == 0) i_4 = i_3;
+    Interval_pair i_4 = idxT.right_extend(i_3,d); //if(i_4.reverse.size() == 0) i_4 = i_3;
     if(verboseSubroutine) cout << "Extended interval " << i_3.toString() << " to the right and got: " << i_4.toString() << "\n";
 
     for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
@@ -228,8 +228,8 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
   int itrl1Size = idxS.size()-1;
   int itrl2Size = idxT.size()-1;
 
-  auto lftext1 = mapLF(idxS).second;
-  auto lftext2 = mapLF(idxT).second;
+  //  auto lftext1 = mapLF(idxS).second;
+  //  auto lftext2 = mapLF(idxT).second;
   // cout << "size " << itrl1Size << "\n";
   S.push(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size), Interval_pair(0,itrl2Size,0,itrl2Size),0));
   
@@ -240,7 +240,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       if(verboseElement) cout << "Invalid Element" << ip0.toString() << ip1.toString() << "\n";
-      continue;
+      //continue;
     }
     
     if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || (enumerateLeft(idxS,ip0) != enumerateLeft(idxT,ip1))){ //had to take forward and reverse unlike pseudo
@@ -283,7 +283,10 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     }else{
       continue;
     }
-    int maxDelta = -1;
+
+    int xForwardDelta = x.first.forward.right - x.first.forward.left;
+    int xForwardDelta2 = x.second.forward.right - x.second.forward.left;
+    int maxDelta = xForwardDelta + xForwardDelta2;
     if(verboseMaximum) cout << "\n";
     
     for(auto y : I){
@@ -291,10 +294,8 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
 	continue;
       }
       if(verboseMaximum) cout << "Comparing x:\t " << x.first.toString() << "\t" << x.second.toString() << "\nagainst y:\t " << y.first.toString() << "\t" << y.second.toString() << "\n";
-      int xForwardDelta = x.first.forward.right - x.first.forward.left;
-      int yForwardDelta = y.first.forward.right - y.first.forward.left;
 
-      int xForwardDelta2 = x.second.forward.right - x.second.forward.left;
+      int yForwardDelta = y.first.forward.right - y.first.forward.left;
       int yForwardDelta2 = y.second.forward.right - y.second.forward.left;
 
       int zDelta 	= yForwardDelta + yForwardDelta2;
@@ -517,7 +518,7 @@ int main(){
   for(auto a : removedupes){
     int i, j, depth;
     tie(i,j,depth) = a;
-    if(depth > 0 && retSA[i]+depth+1 < index.size()){
+    if(depth > 2 && retSA[i]+depth+1 < index.size() && retSA2[j]+depth+1 < index2.size()){
       // cout << "subroutine > i: " << i << " j: " << j << " depth: " << depth << "\n";
       int begin_i= retSA[i];
       int end_i  = begin_i+depth-1;
@@ -528,12 +529,12 @@ int main(){
       cout << "Depth given in tuple (i,j,d): "<< depth << "\n";
       cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
 
-      for(int b = begin_i; b <= end_i; b++){
+      for(int b = begin_i+1; b <= end_i+1; b++){
       	cout << text[b];
       }
       cout << "\n";
       cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
-      for(int b = begin_j; b <= end_j; b++){
+      for(int b = begin_j+1; b <= end_j+1; b++){
       	cout << text2[b];
       }
       cout << "\n";
