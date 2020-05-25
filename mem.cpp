@@ -518,14 +518,16 @@ int main(){
   for(auto a : removedupes){
     int i, j, depth;
     tie(i,j,depth) = a;
+    int begin_i= retSA[i];
+    int end_i  = begin_i+depth-1;
+    int begin_j= retSA2[j];
+    int end_j  = begin_j+depth-1;
+      
     if(depth > 2 && retSA[i]+depth+1 < index.size() && retSA2[j]+depth+1 < index2.size()){
       // cout << "subroutine > i: " << i << " j: " << j << " depth: " << depth << "\n";
-      int begin_i= retSA[i];
-      int end_i  = begin_i+depth-1;
-      int begin_j= retSA2[j];
-      int end_j  = begin_j+depth-1;
-      
+
       //Printing with the depth information, currently depth is wrong.
+      //Does not work when (a == b && b == c) is set in the subroutine.
       cout << "Depth given in tuple (i,j,d): "<< depth << "\n";
       cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
 
@@ -538,8 +540,10 @@ int main(){
       	cout << text2[b];
       }
       cout << "\n";
-
+    }
+    if(depth > 0){
       //Printing by checking equality, not ideal but works for ensuring correctness until depth works properly.
+      //This however only works when (a == b && b == c) is set in the subroutine.
       int d = 0;
       while(text[begin_i+d] == text2[begin_j+d] && begin_i+d < text.size() && begin_j+d < text2.size()){
 	cout << text[begin_i+d];
@@ -548,9 +552,9 @@ int main(){
       if(begin_j >= begin_i){
 	Ipairs.push_back(Interval_pair(begin_i, begin_i+d,begin_j, begin_j+d));
       }
-      cout << ", final depth: " << d<< "\n";
-      
-      cout << "\n";
+      if(d > 0){
+	cout << ", final depth: " << d<< "\n";
+      }
     }
   }
 
