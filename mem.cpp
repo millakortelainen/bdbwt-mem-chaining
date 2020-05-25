@@ -17,8 +17,8 @@ bool verboseEnumeration = false;
 bool verboseSigma = false;
 bool verboseI = false;
 bool verboseMaximum = false;
-bool verboseSubroutine = false;
-bool verboseElement = false;
+bool verboseSubroutine = true;
+bool verboseElement = true;
 set<char> alphabet;
 
 struct suffix{
@@ -94,11 +94,17 @@ void pretty_print_all(BD_BWT_index<>& index, string text1){
     return std::vector<uint8_t> array containing each unique character.
 */
 std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
-  set<uint8_t> s;
   vector<uint8_t> ret;
+  //  cout << "index has the size of: " << idx.size() << "\n";
+  if(ip.forward.left > idx.size() || ip.forward.right > idx.size()){
+    return ret;
+  }
+  set<uint8_t> s;
   for(int i = ip.forward.left; i <= ip.forward.right; i++){
     auto c = idx.forward_bwt_at(i);
+    //if(c != BD_BWT_index<>::END){
     s.insert(c); //Set is always sorted
+    //}
     //    cout << "enumerated left symbol: " << c << ", from forward interval of: " << ip.forward.toString() <<"\n";
   }
   if(verboseEnumeration) cout << "Enumerated left on forward interval of " << ip.toString() << "\n";
@@ -121,11 +127,17 @@ std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
     return std::vector<uint8_t> array containing each unique character.
 */
 std::vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
-  set<uint8_t> s;
   vector<uint8_t> ret;
+  //  cout << "index has the size of: " << idx.size() << "\n";
+  if(ip.reverse.left > idx.size() || ip.reverse.right > idx.size()){
+    return ret;
+  }
+  set<uint8_t> s;
   for(int i = ip.reverse.left; i <= ip.reverse.right; i++){
     auto c = idx.backward_bwt_at(i);
-    s.insert(c); //Set is always sorted
+    //    if(c != BD_BWT_index<>::END){
+      s.insert(c); //Set is always sorted
+      // }
     //cout << "enumerated right symbol: " << c  << ", from backward interval of: "<< ip.reverse.toString() << "\n";
   }
   if(verboseEnumeration) cout << "Enumerated right on backward interval of " << ip.toString() << "\n";
@@ -181,12 +193,6 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
       if(a != c && b != d){ // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
 
 	cross.push_back(make_tuple(a,b,c,d));
-	if(verboseSubroutine){
-	  if(a == BD_BWT_index<>::END) a = '$';
-	  if(b == BD_BWT_index<>::END) b = '$';
-	  if(c == BD_BWT_index<>::END) c = '$';
-	  if(d == BD_BWT_index<>::END) d = '$';
-	}
       }
     }
     if(verboseSubroutine) cout << "---" << "\n";
@@ -195,16 +201,16 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   for(int k = 0; k < cross.size(); k++){
     tie(a,b,c,d) = cross[k];
     Interval_pair i_1 = idxS.left_extend(pr.first,a);  //if(i_1.reverse.size() == 0) i_1 = pr.first;
-    if(verboseSubroutine) cout << "Extended interval " << pr.first.toString() << " to the left and got: " << i_1.toString() << "\n";
+    if(verboseSubroutine) cout << "Extended interval " << pr.first.toString() << " to the left with " << a << " and got: " << i_1.toString() << "\n";
     
     Interval_pair i_2 = idxS.right_extend(i_1,b); //if(i_2.reverse.size() == 0) i_2 = i_1; 
-    if(verboseSubroutine) cout << "Extended interval " << i_1.toString() << " to the right and got: " << i_2.toString() << "\n";
+    if(verboseSubroutine) cout << "Extended interval " << i_1.toString() << " to the right with " << b << " and got: " << i_2.toString() << "\n";
     
     Interval_pair i_3 = idxT.left_extend(pr.second,c); //if(i_3.reverse.size() == 0) i_3 = pr.second;
-    if(verboseSubroutine) cout << "Extended interval " << pr.second.toString() << " to the left and got: " << i_3.toString() << "\n";
+    if(verboseSubroutine) cout << "Extended interval " << pr.second.toString() << " to the left with " << c << " and got: " << i_3.toString() << "\n";
     
     Interval_pair i_4 = idxT.right_extend(i_3,d); //if(i_4.reverse.size() == 0) i_4 = i_3;
-    if(verboseSubroutine) cout << "Extended interval " << i_3.toString() << " to the right and got: " << i_4.toString() << "\n";
+    if(verboseSubroutine) cout << "Extended interval " << i_3.toString() << " to the right with " << d << " and got: " << i_4.toString() << "\n";
 
     for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
       for(int j = i_4.forward.left; j <= i_4.forward.right; j++){
@@ -239,11 +245,11 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     if(verboseElement) cout << ip0.toString() << ip1.toString() << ", current depth is: " << depth << " \nStack has: " << S.size() << " elements left."  << "\n\n";
     
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
-      if(verboseElement) cout << "Invalid Element" << ip0.toString() << ip1.toString() << "\n";
-      //continue;
+      if(true) cout << "Invalid Element" << ip0.toString() << ip1.toString() << "\n";
+      continue;
     }
     
-    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || (enumerateLeft(idxS,ip0) != enumerateLeft(idxT,ip1))){ //had to take forward and reverse unlike pseudo
+    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || (enumerateLeft(idxS,ip0) != enumerateLeft(idxT,ip1))){
       if(depth > 0){
 	if(verboseSubroutine) cout << "Enter subroutine with depth: " << depth << "\n";
 	auto rettemp = bwt_mem2_subroutine(idxS,idxT,make_pair(ip0,ip1),depth);
@@ -260,17 +266,19 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
       uint8_t cp = c;
       Interval_pair i1 = idxS.left_extend(ip0,c);
       Interval_pair i2 = idxT.left_extend(ip1,c);
-      
-      if(verboseSigma){
+      if(c == BD_BWT_index<>::END){
+	//	continue;
+      }
+      if(true){
 	if(cp == BD_BWT_index<>::END){
 	  cp = '$';
 	}
 	cout << "Sigma: " << cp << "\n";
-	cout << "\tExtending interval left on IdxS" << ip0.toString() << " with character: " << cp << " ... -> " << i1.toString()<<"\n";
-	cout << "\tExtending interval left on IdxT" << ip1.toString() << " with character: " << cp << " ... -> " << i2.toString()<<"\n";
+	cout << "\tExtending interval to left on IdxS" << ip0.toString() << " with character: " << cp << " ... -> " << i1.toString()<<"\n";
+	cout << "\tExtending interval to left on IdxT" << ip1.toString() << " with character: " << cp << " ... -> " << i2.toString()<<"\n";
       }
       if(i1.forward.left < 0 || i2.forward.left < 0){ //left_extend() returns [-1,-2] interval if extending with character c is not possible.
-	continue; //We don't need to bother with invalid index.
+	continue; //no need to bother with invalid index
       }
       I.insert(make_pair(i1,i2));
       if(verboseI) cout << "\t\tI size: " << I.size() << " Added: " << i1.toString() << i2.toString() << "\n";
@@ -290,9 +298,6 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     if(verboseMaximum) cout << "\n";
     
     for(auto y : I){
-      if(y.first.forward.left < 0 || y.second.forward.left < 0 || y.first.reverse.left < 0 || y.second.reverse.right < 0){
-	continue;
-      }
       if(verboseMaximum) cout << "Comparing x:\t " << x.first.toString() << "\t" << x.second.toString() << "\nagainst y:\t " << y.first.toString() << "\t" << y.second.toString() << "\n";
 
       int yForwardDelta = y.first.forward.right - y.first.forward.left;
@@ -322,8 +327,19 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
 	  if(verboseI) cout << "\t" << i.first.toString() << i.second.toString() << "\n";	  
 	}
 	for(auto y : I){
-	  if(idxS.is_right_maximal(ip0) || idxT.is_right_maximal(ip1) || (enumerateRight(idxS, ip0) != enumerateRight(idxT, ip1))){
-	    if(verboseElement) cout << "Pushed y:" << y.first.toString() << y.second.toString() << "\n";
+	  if(verboseElement){
+	    cout << "Is " << y.first.toString() << y.second.toString() << " right maximal on idxS? " << idxS.is_right_maximal(y.first) << ", on idxT? " << idxT.is_right_maximal(y.second) << "\n";
+	    for(auto e : enumerateRight(idxS, y.first)){
+	      cout << e << ",";
+	    }cout << "\n";
+	    for(auto e : enumerateRight(idxT,y.second)){
+	      cout << e << ",";
+	    }cout << "\n";															       
+	  }	 
+	  if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) || (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second))){	
+	    if(verboseElement){
+	      cout << "Pushed y:" << y.first.toString() << y.second.toString() << "\n";
+	    }
 	    S.push(make_tuple(y.first,y.second, depth+1));
 	  }
 	}
@@ -336,7 +352,17 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     // for(auto i : enumerateRight(idxS, ip0)){
     //   cout << "enum2: " << i << "\n";
     // }
-    if(idxS.is_right_maximal(ip0) || idxT.is_right_maximal(ip1) || (enumerateRight(idxS, ip0) != enumerateRight(idxT, ip1))){ //had to take forward and reverse unlike pseudo
+    if(verboseElement){
+      cout << "Is x right maximal on idxS? " << idxS.is_right_maximal(x.first) << ", on idxT? " << idxT.is_right_maximal(x.second) << "\n";
+      for(auto e : enumerateRight(idxS, x.first)){
+	cout << e << ",";
+      }cout << "\n";
+      for(auto e : enumerateRight(idxT,x.second)){
+	cout << e << ",";
+      }cout << "\n";
+    }
+      
+     if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) || (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second))){ //had to take forward and reverse unlike pseudo
       if(verboseElement) cout << "Pushed x:" << x.first.toString() << x.second.toString() << "\n";
       S.push(make_tuple(x.first,x.second, depth+1));
     }
@@ -442,7 +468,7 @@ vector<int> returnIntervals(BD_BWT_index<> idxS, BD_BWT_index<> idxT, int i){
   vector<int> retSA(idxS.size(),-9);
   retSA[lfS.second] = idxS.size()-1;
   retSA = int_ret_recurse(idxS, lfS.first, i, lfS.first[lfS.second],  0, retSA);
-
+  
   return retSA;
     
 }
@@ -487,9 +513,10 @@ vector<pair<int,tuple<int,int,int>>> batchLocate(vector<pair<int,tuple<int,int,i
 }
 
 int main(){
-  string text =  "GTGCGTGATCATCATTT";
-  string text2 = "GTGCAAAGTGATTACCA";
-  //string text2 = "ASDKASSATTKATI";
+  //string text =  "GTGCGTGATCATCATTT";
+  //string text2 = "GTGCAAAGTGATTACCA";
+  string text2 = "ASDKASSAI";
+  string text =  "ASDKISSAI";
 
   //500 bases.
   //string text = "gttcaccatttaaataatcttcaatatcaacacgcgaagctcgcttgcagggatgaactgaatagacctgtttactccggaaaagcaagactatcctggtgctgatgctacggtacattgttcttggcacgattacggactattcacactgaatccgggtggggagggccttatggacacgtaatatgcgcgtactggttggcgttgtagacgcgcaacttcatcgataatctgactgcctgacaagctaccagcaatacgttactccatcccgctatcctcggtactgcttgcggtgtcaccccgttaagtgacgtcctgttcgcggctaggctacgagttgcgttaatgcactctgaatcagaattccgcagcgttaagctggcttcaccagcgtcttcggtctgacttaaacctactcccgacatttctacagtgactactgtgtacgccccacgaagtcaaccccgagctacacctaaccggcctccagcactgcc";
@@ -500,6 +527,10 @@ int main(){
   
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
+  auto  test = enumerateLeft(index,Interval_pair(19,19,19,19));
+  for(auto i : test){
+    cout << i << "\n";
+  }
   
   auto mems  = bwt_mem2(index, index2);
   set<tuple<int,int,int> > removedupes;
@@ -509,39 +540,51 @@ int main(){
 
   auto retSA = returnIntervals(index,index2,0);
   auto retSA2 = returnIntervals(index2,index,0);
-  //int ind = 0;
-  //for(auto r : retSA){
-  //  cout << "retSA: " << ind<< ", "<< r << "\n";
-  //  ind++;
-  //}
+  int ind = 0;
+  for(auto r : retSA){
+    cout << "retSA: " << ind<< ", "<< r << "\n";
+    ind++;
+  }
   
-  for(auto a : removedupes){
+  for(auto a : mems){
     int i, j, depth;
     tie(i,j,depth) = a;
-    int begin_i= retSA[i];
-    int end_i  = begin_i+depth-1;
-    int begin_j= retSA2[j];
-    int end_j  = begin_j+depth-1;
+    int begin_i= retSA[i]+1;
+    int end_i  = begin_i+depth;
+    int begin_j= retSA2[j]+1;
+    int end_j  = begin_j+depth;
+   
+    
+
+    
       
-    if(depth > 2 && retSA[i]+depth+1 < index.size() && retSA2[j]+depth+1 < index2.size()){
+    if(depth > 2){
+    //   if(begin_i >= text2.size() || begin_j >= text2.size()){
+    // 	cout << "SA[i] = " << retSA[i] << ", " << retSA[j] << "\n"; 
+    // 	begin_i = text.size()-retSA[i]-1;
+    // 	end_i = begin_i+depth-1;
+	
+    // 	begin_j = text2.size()-retSA2[j]-1;
+    // 	end_j = begin_j+depth-1;
+    // }
       // cout << "subroutine > i: " << i << " j: " << j << " depth: " << depth << "\n";
 
       //Printing with the depth information, currently depth is wrong.
       //Does not work when (a == b && b == c) is set in the subroutine.
-      cout << "Depth given in tuple (i,j,d): "<< depth << "\n";
+      cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
       cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
 
-      for(int b = begin_i+1; b <= end_i+1; b++){
+      for(int b = begin_i; b < end_i; b++){
       	cout << text[b];
       }
       cout << "\n";
       cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
-      for(int b = begin_j+1; b <= end_j+1; b++){
+      for(int b = begin_j; b < end_j; b++){
       	cout << text2[b];
       }
       cout << "\n";
     }
-    if(depth > 0){
+    if(depth > 2){
       //Printing by checking equality, not ideal but works for ensuring correctness until depth works properly.
       //This however only works when (a == b && b == c) is set in the subroutine.
       int d = 0;
@@ -550,7 +593,7 @@ int main(){
 	d++;
       }
       if(begin_j >= begin_i){
-	Ipairs.push_back(Interval_pair(begin_i, begin_i+d,begin_j, begin_j+d));
+	//Ipairs.push_back(Interval_pair(begin_i, begin_i+d,begin_j, begin_j+d));
       }
       if(d > 0){
 	cout << ", final depth: " << d<< "\n";
@@ -558,12 +601,12 @@ int main(){
     }
   }
 
-  //pretty_print_all(index,text);
-  //pretty_print_all(index2,text2);
+  pretty_print_all(index,text);
+  pretty_print_all(index2,text2);
 
-  auto chains = chaining(Ipairs, text2.size());
-  for(int i = 0; i < chains.size(); i++){
-   cout <<"Chain["<< i << "]: " << chains[i] << "\n";
-  }
+  //auto chains = chaining(Ipairs, text2.size());
+  //for(int i = 0; i < chains.size(); i++){
+  //cout <<"Chain["<< i << "]: " << chains[i] << "\n";
+  //}
 }
 
