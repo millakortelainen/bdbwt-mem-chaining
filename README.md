@@ -1,8 +1,8 @@
 # bdbwt-mem-chaining
 
-Requires [BDBWT](https://github.com/algbio/bdbwt) and it's dependencies and are included in /include (BDBWT) and /sdsl-lite (SDSL) folders.
+Requires [BDBWT](https://github.com/algbio/bdbwt) and it's dependencies which are included in /include (BDBWT) and /sdsl-lite (SDSL) folders.
 
-Similar to BDBWT, requires building sdsl, which can be done as follows:
+Similar to BDBWT, requires building sdsl to be built:
 ```
 cd sdsl-lite
 sh ./install.sh
