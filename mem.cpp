@@ -17,8 +17,9 @@ bool verboseEnumeration = false;
 bool verboseSigma = false;
 bool verboseI = false;
 bool verboseMaximum = false;
-bool verboseSubroutine = true;
-bool verboseElement = true;
+bool verboseSubroutine = false;
+bool verboseElement = false;
+int minimumDepth = 1;
 set<char> alphabet;
 
 struct suffix{
@@ -190,7 +191,9 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     for(auto j: B){
       c = j.first;
       d = j.second;
-      if(a != c && b != d){ // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
+      if((a != c && b != d /*&& a != BD_BWT_index<>::END && b != BD_BWT_index<>::END && c != BD_BWT_index<>::END && d != BD_BWT_index<>::END*/) ||
+	 (a == BD_BWT_index<>::END && c == BD_BWT_index<>::END && (b != d)) ||
+	 (b == BD_BWT_index<>::END && d == BD_BWT_index<>::END && (a != b))) { // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
 
 	cross.push_back(make_tuple(a,b,c,d));
       }
@@ -245,12 +248,13 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
     if(verboseElement) cout << ip0.toString() << ip1.toString() << ", current depth is: " << depth << " \nStack has: " << S.size() << " elements left."  << "\n\n";
     
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
-      if(true) cout << "Invalid Element" << ip0.toString() << ip1.toString() << "\n";
+      if(verboseElement) cout << "Invalid Element" << ip0.toString() << ip1.toString() << "\n";
       continue;
     }
     
-    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || (enumerateLeft(idxS,ip0) != enumerateLeft(idxT,ip1))){
-      if(depth > 0){
+    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || (enumerateLeft(idxS,ip0) != enumerateLeft(idxT,ip1)) ||
+       (enumerateLeft(idxS,ip0).size()==1 && enumerateLeft(idxS,ip0)[0] == BD_BWT_index<>::END)){ //Handle END symbols
+      if(depth >= minimumDepth){
 	if(verboseSubroutine) cout << "Enter subroutine with depth: " << depth << "\n";
 	auto rettemp = bwt_mem2_subroutine(idxS,idxT,make_pair(ip0,ip1),depth);
 	for(auto i : rettemp){
@@ -267,9 +271,9 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
       Interval_pair i1 = idxS.left_extend(ip0,c);
       Interval_pair i2 = idxT.left_extend(ip1,c);
       if(c == BD_BWT_index<>::END){
-	//	continue;
+      	continue;
       }
-      if(true){
+      if(verboseSigma){
 	if(cp == BD_BWT_index<>::END){
 	  cp = '$';
 	}
@@ -336,7 +340,8 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
 	      cout << e << ",";
 	    }cout << "\n";															       
 	  }	 
-	  if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) || (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second))){	
+	  if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) || (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
+	     (enumerateRight(idxS,y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
 	    if(verboseElement){
 	      cout << "Pushed y:" << y.first.toString() << y.second.toString() << "\n";
 	    }
@@ -345,13 +350,6 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
 	}
       }
     }
-    //cout << "Interval x: " <<ip0.toString() << ip1.toString() << "rmax1: " << idxS.is_right_maximal(ip0) << "rmax2: " << idxS.is_right_maximal(ip1) << "\n";
-    // for(auto i : enumerateRight(idxS, ip0)){
-    //   cout << "enum1: " << i << "\n";
-    // }
-    // for(auto i : enumerateRight(idxS, ip0)){
-    //   cout << "enum2: " << i << "\n";
-    // }
     if(verboseElement){
       cout << "Is x right maximal on idxS? " << idxS.is_right_maximal(x.first) << ", on idxT? " << idxT.is_right_maximal(x.second) << "\n";
       for(auto e : enumerateRight(idxS, x.first)){
@@ -362,7 +360,10 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
       }cout << "\n";
     }
       
-     if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) || (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second))){ //had to take forward and reverse unlike pseudo
+     if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) || (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second)) ||
+	(enumerateRight(idxS,x.first).size()==1 && enumerateRight(idxS,x.first)[0] == BD_BWT_index<>::END)){  // Handle END symbols
+
+       
       if(verboseElement) cout << "Pushed x:" << x.first.toString() << x.second.toString() << "\n";
       S.push(make_tuple(x.first,x.second, depth+1));
     }
@@ -463,7 +464,7 @@ vector<int> int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int i, int cu
 }
 /** Creating SA with use of recursive LF mapping.
 */
-vector<int> returnIntervals(BD_BWT_index<> idxS, BD_BWT_index<> idxT, int i){
+vector<int> buildSAfromBWT(BD_BWT_index<> idxS, int i = 0){
   auto lfS = mapLF(idxS);
   vector<int> retSA(idxS.size(),-9);
   retSA[lfS.second] = idxS.size()-1;
@@ -512,97 +513,92 @@ vector<pair<int,tuple<int,int,int>>> batchLocate(vector<pair<int,tuple<int,int,i
   return pairs;
 }
 
+int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
+  int i,j,d;
+  int x,y,z;
+  tie(i,j,d) = set1;
+  tie(x,y,z) = set2;
+  if(i != x){
+    return (i < x);
+  }
+  else{
+    if(d != z){
+      return (d > z);
+    }
+    else{
+      if(j != y){
+	return (j < y);
+      }
+    }
+  }
+  return 0;
+}
+    
 int main(){
-  //string text =  "GTGCGTGATCATCATTT";
-  //string text2 = "GTGCAAAGTGATTACCA";
-  string text2 = "ASDKASSAI";
-  string text =  "ASDKISSAI";
-
-  //500 bases.
-  //string text = "gttcaccatttaaataatcttcaatatcaacacgcgaagctcgcttgcagggatgaactgaatagacctgtttactccggaaaagcaagactatcctggtgctgatgctacggtacattgttcttggcacgattacggactattcacactgaatccgggtggggagggccttatggacacgtaatatgcgcgtactggttggcgttgtagacgcgcaacttcatcgataatctgactgcctgacaagctaccagcaatacgttactccatcccgctatcctcggtactgcttgcggtgtcaccccgttaagtgacgtcctgttcgcggctaggctacgagttgcgttaatgcactctgaatcagaattccgcagcgttaagctggcttcaccagcgtcttcggtctgacttaaacctactcccgacatttctacagtgactactgtgtacgccccacgaagtcaaccccgagctacacctaaccggcctccagcactgcc";
-  
-  //string text2 = "aattcgaatagttagctgacgtacgacatgttaccttaataatataactggtgtccgcgactgagtgctctcctacctcccacgagcctcaggaaaaacgtctttaaatctctacccggagctgtttaaggggaagccaactcgaacctagcagggcattaaatttgtattgcaccaaaacgaccggcttaacattccgtgtctcactggacggaaaaccaacctaagcagtatttggcctcctggtaggcgaaccatctacggtggaccgtataatcggactaaccggcaggtttacacttcgcaatgctacgctgcccagggccgggcccccagtaggtttgcactgtagagggagggccggagtgtatcccccatcggtaactctacatatgcgcaagccgccctgggcaagatcccatcccactcgtgtggctctcgcgccgggtggattgtacgatcggaatcctctggggacgcgcgttcagtaacttcgctta";
-  
+  string text;
+  string text2;
+  switch(1){
+  case 1: {
+    text  = "GTGCGTGATCATCATTT";
+    text2 = "GTGCAAAGTGATTACCA"; break;
+  }
+  case 2:{
+    text  = "ASDKISSAIKALAS";
+    text2 = "ASDKASSAIAKALA"; break;
+  }
+  case 3: {
+    text  = "GTGCGTGTTCATCATTT";
+    text2 = "GTGCGTGATCATCATTT"; break;
+  }
+  case 500: {
+    text = "gttcaccatttaaataatcttcaatatcaacacgcgaagctcgcttgcagggatgaactgaatagacctgtttactccggaaaagcaagactatcctggtgctgatgctacggtacattgttcttggcacgattacggactattcacactgaatccgggtggggagggccttatggacacgtaatatgcgcgtactggttggcgttgtagacgcgcaacttcatcgataatctgactgcctgacaagctaccagcaatacgttactccatcccgctatcctcggtactgcttgcggtgtcaccccgttaagtgacgtcctgttcgcggctaggctacgagttgcgttaatgcactctgaatcagaattccgcagcgttaagctggcttcaccagcgtcttcggtctgacttaaacctactcccgacatttctacagtgactactgtgtacgccccacgaagtcaaccccgagctacacctaaccggcctccagcactgcc";
+    text2 = "aattcgaatagttagctgacgtacgacatgttaccttaataatataactggtgtccgcgactgagtgctctcctacctcccacgagcctcaggaaaaacgtctttaaatctctacccggagctgtttaaggggaagccaactcgaacctagcagggcattaaatttgtattgcaccaaaacgaccggcttaacattccgtgtctcactggacggaaaaccaacctaagcagtatttggcctcctggtaggcgaaccatctacggtggaccgtataatcggactaaccggcaggtttacacttcgcaatgctacgctgcccagggccgggcccccagtaggtttgcactgtagagggagggccggagtgtatcccccatcggtaactctacatatgcgcaagccgccctgggcaagatcccatcccactcgtgtggctctcgcgccgggtggattgtacgatcggaatcctctggggacgcgcgttcagtaacttcgctta"; break;
+  }
+  }
+  minimumDepth = 3;  
   std::vector<Interval_pair> Ipairs;
   
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
-  auto  test = enumerateLeft(index,Interval_pair(19,19,19,19));
-  for(auto i : test){
-    cout << i << "\n";
-  }
-  
-  auto mems  = bwt_mem2(index, index2);
-  set<tuple<int,int,int> > removedupes;
-  for(auto a: mems ){
-    removedupes.insert(a);
-  }
+  auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
+  auto retSA2 = buildSAfromBWT(index2);
 
-  auto retSA = returnIntervals(index,index2,0);
-  auto retSA2 = returnIntervals(index2,index,0);
-  int ind = 0;
-  for(auto r : retSA){
-    cout << "retSA: " << ind<< ", "<< r << "\n";
-    ind++;
-  }
+  auto mems  = bwt_mem2(index, index2);//Find MEMS between two BDBWT indexes.
+  sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
   
   for(auto a : mems){
     int i, j, depth;
     tie(i,j,depth) = a;
     int begin_i= retSA[i]+1;
-    int end_i  = begin_i+depth;
     int begin_j= retSA2[j]+1;
-    int end_j  = begin_j+depth;
-   
     
-
+    //Handling the specific special case when SA^S[i] = text.size(); We use index.size()-1 instead so wouldn't need to keep the text in memory at all.
+    if(begin_i >= index.size()-1){
+      begin_i = index.size()-retSA[i]-1; //Index.size() will always be text.size()+1 due to the added END marker. Furthermore, we need to minus one to get proper offset from general case of begin_i = retSA[i]+1;
+    }
+    //Handling the specific special case when SA^T[j] = text2.size(); We use index2.size()-1 instead so wouldn't need to keep the text in memory at all.
+    if(begin_j >= index2.size()-1){
+      begin_j = index2.size()-retSA2[j]-1; //Analogously to above. 
+    }
+    int end_i  = begin_i+depth-1;
+    int end_j  = begin_j+depth-1;
     
-      
-    if(depth > 2){
-    //   if(begin_i >= text2.size() || begin_j >= text2.size()){
-    // 	cout << "SA[i] = " << retSA[i] << ", " << retSA[j] << "\n"; 
-    // 	begin_i = text.size()-retSA[i]-1;
-    // 	end_i = begin_i+depth-1;
-	
-    // 	begin_j = text2.size()-retSA2[j]-1;
-    // 	end_j = begin_j+depth-1;
-    // }
-      // cout << "subroutine > i: " << i << " j: " << j << " depth: " << depth << "\n";
-
-      //Printing with the depth information, currently depth is wrong.
-      //Does not work when (a == b && b == c) is set in the subroutine.
-      cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
-      cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
-
-      for(int b = begin_i; b < end_i; b++){
-      	cout << text[b];
-      }
-      cout << "\n";
-      cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
-      for(int b = begin_j; b < end_j; b++){
-      	cout << text2[b];
-      }
-      cout << "\n";
+    cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
+    
+    cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
+    for(int b = begin_i; b <= end_i; b++){
+      cout << text[b]; //For verificiation of results
     }
-    if(depth > 2){
-      //Printing by checking equality, not ideal but works for ensuring correctness until depth works properly.
-      //This however only works when (a == b && b == c) is set in the subroutine.
-      int d = 0;
-      while(text[begin_i+d] == text2[begin_j+d] && begin_i+d < text.size() && begin_j+d < text2.size()){
-	cout << text[begin_i+d];
-	d++;
-      }
-      if(begin_j >= begin_i){
-	//Ipairs.push_back(Interval_pair(begin_i, begin_i+d,begin_j, begin_j+d));
-      }
-      if(d > 0){
-	cout << ", final depth: " << d<< "\n";
-      }
+    cout << "\n";
+    cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
+    for(int b = begin_j; b <= end_j; b++){
+      cout << text2[b]; //For verification of results
     }
+    cout << "\n";
   }
 
-  pretty_print_all(index,text);
-  pretty_print_all(index2,text2);
+  //  pretty_print_all(index,text);
+  //pretty_print_all(index2,text2);
 
   //auto chains = chaining(Ipairs, text2.size());
   //for(int i = 0; i < chains.size(); i++){
