@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <tuple>
 #include <stack>
+#include <cmath>
 
 using namespace std;
 
@@ -26,6 +27,11 @@ struct suffix{
   int index;
   string suffix;
 };
+struct occStruct{
+  int key;
+  int primary;
+};
+
 int suffcmp(struct suffix first, struct suffix last){
   return (first.suffix < last.suffix)? 1:0;
 }
@@ -60,7 +66,11 @@ pair<map<int,int>,int> mapLF(BD_BWT_index<>& index){
   }
   for(int i = 0; i < index.size(); i++){
     char l = char(index.forward_bwt_at(i));
-    lfmapping[i] = C[l]+m[l];
+    //if(C[l]+m[l] == index.size()-1){
+    // lfmapping[i] = 0;
+    //}else{
+      lfmapping[i] = C[l]+m[l];
+      //}
     if(lfmapping[i] == 0){
       zeroth_index = i;
     }
@@ -473,44 +483,67 @@ vector<int> buildSAfromBWT(BD_BWT_index<> idxS, int i = 0){
   return retSA;
     
 }
-/** TODO RadixSort
- */
-void radixSort(vector<pair<int,int>> list, int r){
-  sort(list.begin(), list.end(), pairSort);
+vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
+  int rad = 10; 
+  std::list<struct occStruct> radix[rad];
+  for(int i = 0; i < r; i++){
+    int r1 = pow(rad,i+1);
+    int r2 = pow(rad,i);
+    for(int j = 0; j < list.size(); j++){
+      auto idx = ((list[j].primary) % r1) / r2;
+      radix[idx].push_back(list[j]);
+    }
+	
+    int k = 0;
+    for(int j = 0; j < rad; j++){
+      while(!radix[j].empty()){
+	list[k] = *(radix[j].begin());
+	radix[j].erase(radix[j].begin());
+	k++;
+      }
+    } 
+  }
+  return list;
 }
-/** TODO RadixSort
- */
-void radixSort(vector<pair<int,tuple<int,int,int>>> list, int r){
-  sort(list.begin(), list.end(), pairSort2);
-}
-/** TODO batch locate
- */	       
-vector<pair<int,tuple<int,int,int>>> batchLocate(vector<pair<int,tuple<int,int,int>>>  pairs, vector<bool> marked, BD_BWT_index<> bwt){
-  int i = 1;
-  int n = bwt.size()-1;
-  vector<pair<int,int>> translate;
+	       
+vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt){
+  int i = 0;
+  int n = bwt.size();
+  vector<struct occStruct> translate;
+  vector<struct occStruct> ret;
   auto LFindex = mapLF(bwt).first;
   
-  for(int j = n; j > 1; j--){
-    if (marked[i]){
-      translate.push_back(make_pair(i,j));
+  for(int j = n; j > 0; j--){
+    if(marked[i]){
+      struct occStruct temp;      
+      temp.key = i;
+      temp.primary = j-1;
+      translate.push_back(temp);
     }
     i = LFindex[i];
-  }
-  radixSort(translate, 1);
-  radixSort(pairs, 1);
-  i = 1;
-  int j = 1;
+  }  
+  translate = radixSort(translate, 2);
+  pairs = radixSort(pairs,2);
 
-  while(i <= pairs.size()){
-    if(pairs[i].first == translate[j].first){
-      pairs[i].first = translate[j].second;
-      i++;
+  int x = 0;
+  int y = 0;
+  while(x < pairs.size()){
+    auto a = pairs[x];
+    if(a.key == translate[y].key){
+      struct occStruct temp;
+      temp.key = translate[y].primary;
+      temp.primary = a.primary;
+      ret.push_back(temp);
+      x++;
     }else{
-      j++;
+      if(y == translate.size()-1){
+	y = 0;
+      }else{
+	y++;
+      }
     }
   }
-  return pairs;
+  return ret;
 }
 
 int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
@@ -537,10 +570,10 @@ int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
 int main(){
   string text;
   string text2;
-  switch(1){
+  switch(2){
   case 1: {
     text  = "GTGCGTGATCATCATTT";
-    text2 = "GTGCAAAGTGATTACCA"; break;
+    text2 = "AGTGCAAAGTGATTACC"; break;
   }
   case 2:{
     text  = "ASDKISSAIKALAS";
@@ -556,17 +589,91 @@ int main(){
   }
   }
   minimumDepth = 3;  
-  std::vector<Interval_pair> Ipairs;
-  
+  std::vector<struct occStruct> Ipairs;
+  std::vector<struct occStruct> Ipairs2;
+
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
+ 
+  std::vector<bool> marked1(index.size(),false);
+  std::vector<bool> marked2(index2.size(),false);
+
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
   auto retSA2 = buildSAfromBWT(index2);
 
   auto mems  = bwt_mem2(index, index2);//Find MEMS between two BDBWT indexes.
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
+  vector<tuple<int,int,int>> filtered;
+  for(auto m : mems){
+    int i,j,d;
+    tie(i,j,d) = m;
+    if(filtered.size() == 0){
+      filtered.push_back(m);
+    }else{
+      int x,y,z;
+      tie(x,y,z) = filtered[filtered.size()-1];
+      if(i > x){
+	filtered.push_back(m);
+      }else if(i == x && d > z){
+	filtered.pop_back();
+	filtered.push_back(m);
+      }
+    }
+  }
   
-  for(auto a : mems){
+  vector<tuple<int,int,int>> retVector;
+  int p = 0;
+  for(auto m : filtered){
+    struct occStruct newOcc;
+    struct occStruct newOcc2;
+    int i,j,d;
+    tie(i,j,d) = m;
+    cout << "MEM: " << i << ", " << j << ", " << d << endl;
+    newOcc.key  = i;
+    newOcc2.key = j;
+    newOcc.primary  = p;
+    newOcc2.primary = p; p++;
+    marked1[i] = true;
+    marked2[j] = true;
+    Ipairs.push_back(newOcc);
+    Ipairs2.push_back(newOcc2);
+  }
+  cout << "before batch locate\n";
+  for(int i = 0; i < Ipairs.size(); i++){
+    cout << Ipairs[i].key << ", " << Ipairs[i].primary << " - "<< Ipairs2[i].key << ", "<<Ipairs2[i].primary << "\n";
+  }
+  auto bl1 = batchLocate(Ipairs,marked1,index);
+  auto bl2 = batchLocate(Ipairs2,marked2,index2);
+
+  cout << "after batch locate\n";
+  for(int i = 0; i < bl1.size(); i++){
+    cout << bl1[i].key << ", " << bl1[i].primary << " - "<< bl2[i].key << ", "<< bl2[i].primary << "\n";
+  }
+  int maxkey = -1;
+  
+  for(int k = 0; k < filtered.size(); k++){
+    int i,j,d;
+    tie(i,j,d) = filtered[bl1[k].primary];
+    int ik = bl1[k].key+1;
+    int jk = bl2[k].key+1;
+    if(ik+1 >= index.size()-1){ //Special case when interval begins at the beginning, SA[i]=text.size()
+      ik = index.size()-ik;
+    }
+    if(jk+1 >= index2.size()-1){
+      jk = index2.size()-jk;
+    }
+    retVector.push_back(make_tuple(ik, jk, d));
+  }
+
+  for(auto k : retVector){
+    int i,j,d;
+    tie(i,j,d) = k;
+
+    cout << "triple: (" << i <<","<< j <<","<< d <<")\n";
+  }
+  
+  //Naive returning of the intervals
+  for(auto a : filtered){
     int i, j, depth;
     tie(i,j,depth) = a;
     int begin_i= retSA[i]+1;
@@ -597,8 +704,8 @@ int main(){
     cout << "\n";
   }
 
-  //  pretty_print_all(index,text);
-  //pretty_print_all(index2,text2);
+  pretty_print_all(index,text);
+  pretty_print_all(index2,text2);
 
   //auto chains = chaining(Ipairs, text2.size());
   //for(int i = 0; i < chains.size(); i++){
