@@ -2,7 +2,7 @@
 #include <string>
 #include "include/BD_BWT_index.hh"
 #include <stdio.h>
-#include "sortUtil.hh"
+#include <cmath>
 using namespace std;
 
 set<char> alphabet;
@@ -11,6 +11,7 @@ struct suffix{
   int index;
   string suffix;
 };
+
 struct occStruct{
   int key;
   int primary;
@@ -27,6 +28,7 @@ int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
   int x,y,z;
   tie(i,j,d) = set1;
   tie(x,y,z) = set2;
+  
   if(i != x){
     return (i < x);
   }
@@ -45,6 +47,10 @@ int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
 
 bool pairSort(const pair<int,int> &first, const pair<int,int> &second){
   return (first.first < second.first);
+}
+bool intervalSort(const Interval_pair &a, const Interval_pair &b){
+  //return ((a.reverse.left - a.forward.left) < (b.reverse.left - b.forward.left));
+  return (a < b);
 }
 
 vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
@@ -78,7 +84,6 @@ int maxFour(int &a, int &b, int &c, int &d){
 }
 
 /*BEGIN_AUX*/
-
 /** Map LF values for the given index.
     Sreturn pair<map<int,int>,int> such that .first is the actual mapping, and .second is the zeroth index so that we don't need to search for it again.
 */
@@ -90,14 +95,14 @@ pair<map<int,int>,int> mapLF(BD_BWT_index<>& index){
   for(auto i : alphabet){ 
     m[i] = 0;
   }
+  
   for(int i = 0; i < index.size(); i++){
     char l = char(index.forward_bwt_at(i));
     lfmapping[i] = C[l]+m[l];
     if(lfmapping[i] == 0){
       zeroth_index = i;
     }
-    m[l] += 1;    
-    
+    m[l] += 1;      
   }
   return make_pair(lfmapping,zeroth_index);
 }
@@ -120,7 +125,6 @@ int* build_suffix_array(string text){
   return suffix_index_array;
 }
 
-
 /** Creating SA with use of recursive LF mapping.
 */
 vector<int> int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int i, int currIndex, int k, vector<int> retSA){
@@ -130,8 +134,7 @@ vector<int> int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int i, int cu
   }else{
     retSA[currIndex] = idxS.size()-k-1;
     return retSA;
-  }
-  
+  }  
 }
 /** Creating SA with use of recursive LF mapping.
 */
@@ -160,6 +163,7 @@ void pretty_print_all(BD_BWT_index<>& index, string text1){
   cout << separator;
   cout << "| bwd\t" << "ln\t" << "fwd\t" << "LF\t" << "SA[i]\t" << "\t |\n";
   auto mapping = mapLF(index).first;
+  
   for(int i = 0; i < index.size(); i++){
     char t = (char)index.forward_bwt_at(i);
     char tr= (char)index.backward_bwt_at(i);
