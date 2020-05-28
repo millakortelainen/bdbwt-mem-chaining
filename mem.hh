@@ -1,9 +1,10 @@
 #include <iostream>
-#include <bitset>
 #include "include/BD_BWT_index.hh"
 #include "include/Iterators.hh"
 #include "rsa1d.hh"
 #include "rsa2d.hh"
+#include "util.hh"
+#include "sortUtil.hh"
 #include <string>
 #include <set>
 #include <stdio.h>
@@ -11,7 +12,7 @@
 #include <tuple>
 #include <stack>
 #include <cmath>
-
+int minimumDepth = 1;
 using namespace std;
 
 bool verboseEnumeration = false;
@@ -20,85 +21,7 @@ bool verboseI = false;
 bool verboseMaximum = false;
 bool verboseSubroutine = false;
 bool verboseElement = false;
-int minimumDepth = 1;
-set<char> alphabet;
 
-struct suffix{
-  int index;
-  string suffix;
-};
-struct occStruct{
-  int key;
-  int primary;
-};
-
-int suffcmp(struct suffix first, struct suffix last){
-  return (first.suffix < last.suffix)? 1:0;
-}
-int* build_suffix_array(string text){
-  text += BD_BWT_index<>::END;
-  struct suffix suffix_array[text.size()+1];
-  int *suffix_index_array = new int[text.size()+1];
-
-  for(int i = 0; i < text.size(); i++){
-    suffix_array[i].index = i;
-    suffix_array[i].suffix = text.substr(i,text.size()+1);
-  }
-  sort(suffix_array,suffix_array+text.size(),suffcmp);
-
-  for(int i = 0; i < text.size(); i++){
-    cout << suffix_array[i].index << "\t" << suffix_array[i].suffix  << "\n";
-    suffix_index_array[i] = suffix_array[i].index;
-  }
-  return suffix_index_array;
-}
-
-/** Map LF values for the given index.
-    @return pair<map<int,int>,int> such that .first is the actual mapping, and .second is the zeroth index so that we don't need to search for it again.
-*/
-pair<map<int,int>,int> mapLF(BD_BWT_index<>& index){
-  map<char,int> m;
-  map<int,int> lfmapping;
-  auto C = index.get_global_c_array();
-  int zeroth_index = -1;
-  for(auto i : alphabet){ 
-    m[i] = 0;
-  }
-  for(int i = 0; i < index.size(); i++){
-    char l = char(index.forward_bwt_at(i));
-    //if(C[l]+m[l] == index.size()-1){
-    // lfmapping[i] = 0;
-    //}else{
-      lfmapping[i] = C[l]+m[l];
-      //}
-    if(lfmapping[i] == 0){
-      zeroth_index = i;
-    }
-    m[l] += 1;    
-    
-  }
-  return make_pair(lfmapping,zeroth_index);
-}
-/** Print out BWT, LF and SA indices.
-param index BD_BWT_index<>& Burrows Wheeler index.
-param text1 string original text that the BWT is based on.
-*/
-void pretty_print_all(BD_BWT_index<>& index, string text1){
-  string separator = "+------------------------------------------------+\n";
-  cout << separator;
-  auto SA = build_suffix_array(text1);
-  cout << separator;
-  cout << "Text: " << text1 << "\n";
-  cout << separator;
-  cout << "| bwd\t" << "ln\t" << "fwd\t" << "LF\t" << "SA[i]\t" << "\t |\n";
-  auto mapping = mapLF(index).first;
-  for(int i = 0; i < index.size(); i++){
-    char t = (char)index.forward_bwt_at(i);
-    char tr= (char)index.backward_bwt_at(i);
-    cout << "| "<< tr << "\t("<<i<<")\t" << t << "\t" << mapping[i] << "\t" << SA[i] << "\t\t |\n";
-  }
-  cout << separator;
-}
 /** Enumerates the unique characters on the forward index of the BWT.
     param idx BD_BWT_index<> Burrows-wheeler transform
     param ip Interval_pair range to find the unique characters in.
@@ -106,17 +29,13 @@ void pretty_print_all(BD_BWT_index<>& index, string text1){
 */
 std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
   vector<uint8_t> ret;
-  //  cout << "index has the size of: " << idx.size() << "\n";
   if(ip.forward.left > idx.size() || ip.forward.right > idx.size()){
     return ret;
   }
   set<uint8_t> s;
   for(int i = ip.forward.left; i <= ip.forward.right; i++){
     auto c = idx.forward_bwt_at(i);
-    //if(c != BD_BWT_index<>::END){
     s.insert(c); //Set is always sorted
-    //}
-    //    cout << "enumerated left symbol: " << c << ", from forward interval of: " << ip.forward.toString() <<"\n";
   }
   if(verboseEnumeration) cout << "Enumerated left on forward interval of " << ip.toString() << "\n";
   for(auto j : s){
@@ -139,17 +58,14 @@ std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
 */
 std::vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
   vector<uint8_t> ret;
-  //  cout << "index has the size of: " << idx.size() << "\n";
+
   if(ip.reverse.left > idx.size() || ip.reverse.right > idx.size()){
     return ret;
   }
   set<uint8_t> s;
   for(int i = ip.reverse.left; i <= ip.reverse.right; i++){
     auto c = idx.backward_bwt_at(i);
-    //    if(c != BD_BWT_index<>::END){
-      s.insert(c); //Set is always sorted
-      // }
-    //cout << "enumerated right symbol: " << c  << ", from backward interval of: "<< ip.reverse.toString() << "\n";
+    s.insert(c); //Set is always sorted
   }
   if(verboseEnumeration) cout << "Enumerated right on backward interval of " << ip.toString() << "\n";
   for(auto j : s){
@@ -203,8 +119,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
       d = j.second;
       if((a != c && b != d /*&& a != BD_BWT_index<>::END && b != BD_BWT_index<>::END && c != BD_BWT_index<>::END && d != BD_BWT_index<>::END*/) ||
 	 (a == BD_BWT_index<>::END && c == BD_BWT_index<>::END && (b != d)) ||
-	 (b == BD_BWT_index<>::END && d == BD_BWT_index<>::END && (a != b))) { // Pseudocode gives the definition of C = ((a,b,c,d) | (a,b) \in A, (c,d) \in B, a != c, b != d). This however is leading to inconsistent behaviour on returning MEM's.
-
+	 (b == BD_BWT_index<>::END && d == BD_BWT_index<>::END && (a != b))) { 
 	cross.push_back(make_tuple(a,b,c,d));
       }
     }
@@ -381,18 +296,6 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
   return ret;
 }
 
-bool pairSort(const pair<int,int> &first, const pair<int,int> &second){
-  return (first.first < second.first);
-}
-bool pairSort2(const pair<int,tuple<int,int,int>> &first, const pair<int,tuple<int,int,int>> &second){
-  return (first.first < second.first);
-}
-int maxFour(int &a, int &b, int &c, int &d){
-  int e = (a > b)? a:b;
-  int f = (c > d)? c:d;
-  return (e > f)? e:f;
-}
-
 vector<int> chaining(vector<Interval_pair> A, int size){
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
@@ -414,11 +317,9 @@ vector<int> chaining(vector<Interval_pair> A, int size){
     if((A[j].reverse.left - A[j].forward.left) >= 0){
       T_c.update(A[j].reverse.left - A[j].forward.left,A[j].forward.right,-999);
       T_d.update(A[j].reverse.left - A[j].forward.left,A[j].reverse.right,-999);
-      // cout << A[j].forward.left << "\t" << A[j].reverse.left <<"\t" << A[j].reverse.left - A[j].forward.left << "\n";
     }
     auto p1 = make_pair(A[j].forward.left, j);
     auto p2 = make_pair(A[j].forward.right, j);
-    // cout << p2.first << "\t" << p2.second << "\n";
     E_1.push_back(p1);
     E_2.push_back(p2);
 
@@ -433,21 +334,13 @@ vector<int> chaining(vector<Interval_pair> A, int size){
     Interval_pair I = A[j];
 
     if(I.forward.left == E_1[i].first){
-      // cout << "round: " << j << "\n";
       C_a[j] = T_a.rangeMax(0, I.reverse.left-1).second;
       C_b[j] = I.reverse.left + T_b.rangeMax(I.reverse.left,I.reverse.right).second; 
       C_c[j] = I.forward.left + T_c.rangeMax(0,I.reverse.left - I.forward.left,0, I.forward.right).second;
       C_d[j] = I.reverse.left + T_d.rangeMax((I.reverse.left - I.forward.left)+1,999,0, I.reverse.right).second;
 
-      // cout << "error?: " <<  T_d.rangeMax((I.reverse.left - I.forward.left),999,0, I.reverse.right).second << "\n";
-
-      // cout << C_a[j] << "\t" << C_b[j] << "\t" <<  C_c[j] << "\t"  <<  C_d[j] << "\n" ;
-
       C[j] = maxFour(C_a[j], C_b[j],C_c[j],C_d[j]);
       C_p[j] = C[j]+I.forward.right-I.forward.left+1;
-      
-      // cout << (int)C[j]-(int)I.forward.left << "\n";
-
       
       T_c.upgrade(I.reverse.left - I.forward.left, I.forward.right, (int)C[j]-(int)I.forward.left);
       T_d.upgrade(I.reverse.left - I.forward.left, I.forward.right, (int)C[j]-(int)I.reverse.left);
@@ -459,51 +352,6 @@ vector<int> chaining(vector<Interval_pair> A, int size){
     }
   }
   return C_p;
-}
-/** Creating SA with use of recursive LF mapping.
-*/
-vector<int> int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int i, int currIndex, int k, vector<int> retSA){
-  if(k < idxS.size()-1){
-    retSA[currIndex] = idxS.size()-1 - k;
-    return int_ret_recurse(idxS, LFI,i,LFI[currIndex], k+1, retSA);
-  }else{
-    retSA[currIndex] = idxS.size()-k-1;
-    return retSA;
-  }
-  
-}
-/** Creating SA with use of recursive LF mapping.
-*/
-vector<int> buildSAfromBWT(BD_BWT_index<> idxS, int i = 0){
-  auto lfS = mapLF(idxS);
-  vector<int> retSA(idxS.size(),-9);
-  retSA[lfS.second] = idxS.size()-1;
-  retSA = int_ret_recurse(idxS, lfS.first, i, lfS.first[lfS.second],  0, retSA);
-  
-  return retSA;
-    
-}
-vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
-  int rad = 10; 
-  std::list<struct occStruct> radix[rad];
-  for(int i = 0; i < r; i++){
-    int r1 = pow(rad,i+1);
-    int r2 = pow(rad,i);
-    for(int j = 0; j < list.size(); j++){
-      auto idx = ((list[j].primary) % r1) / r2;
-      radix[idx].push_back(list[j]);
-    }
-	
-    int k = 0;
-    for(int j = 0; j < rad; j++){
-      while(!radix[j].empty()){
-	list[k] = *(radix[j].begin());
-	radix[j].erase(radix[j].begin());
-	k++;
-      }
-    } 
-  }
-  return list;
 }
 	       
 vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt){
@@ -546,63 +394,7 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
   return ret;
 }
 
-int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
-  int i,j,d;
-  int x,y,z;
-  tie(i,j,d) = set1;
-  tie(x,y,z) = set2;
-  if(i != x){
-    return (i < x);
-  }
-  else{
-    if(d != z){
-      return (d > z);
-    }
-    else{
-      if(j != y){
-	return (j < y);
-      }
-    }
-  }
-  return 0;
-}
-    
-int main(){
-  string text;
-  string text2;
-  switch(2){
-  case 1: {
-    text  = "GTGCGTGATCATCATTT";
-    text2 = "AGTGCAAAGTGATTACC"; break;
-  }
-  case 2:{
-    text  = "ASDKISSAIKALAS";
-    text2 = "ASDKASSAIAKALA"; break;
-  }
-  case 3: {
-    text  = "GTGCGTGTTCATCATTT";
-    text2 = "GTGCGTGATCATCATTT"; break;
-  }
-  case 500: {
-    text = "gttcaccatttaaataatcttcaatatcaacacgcgaagctcgcttgcagggatgaactgaatagacctgtttactccggaaaagcaagactatcctggtgctgatgctacggtacattgttcttggcacgattacggactattcacactgaatccgggtggggagggccttatggacacgtaatatgcgcgtactggttggcgttgtagacgcgcaacttcatcgataatctgactgcctgacaagctaccagcaatacgttactccatcccgctatcctcggtactgcttgcggtgtcaccccgttaagtgacgtcctgttcgcggctaggctacgagttgcgttaatgcactctgaatcagaattccgcagcgttaagctggcttcaccagcgtcttcggtctgacttaaacctactcccgacatttctacagtgactactgtgtacgccccacgaagtcaaccccgagctacacctaaccggcctccagcactgcc";
-    text2 = "aattcgaatagttagctgacgtacgacatgttaccttaataatataactggtgtccgcgactgagtgctctcctacctcccacgagcctcaggaaaaacgtctttaaatctctacccggagctgtttaaggggaagccaactcgaacctagcagggcattaaatttgtattgcaccaaaacgaccggcttaacattccgtgtctcactggacggaaaaccaacctaagcagtatttggcctcctggtaggcgaaccatctacggtggaccgtataatcggactaaccggcaggtttacacttcgcaatgctacgctgcccagggccgggcccccagtaggtttgcactgtagagggagggccggagtgtatcccccatcggtaactctacatatgcgcaagccgccctgggcaagatcccatcccactcgtgtggctctcgcgccgggtggattgtacgatcggaatcctctggggacgcgcgttcagtaacttcgctta"; break;
-  }
-  }
-  minimumDepth = 3;  
-  std::vector<struct occStruct> Ipairs;
-  std::vector<struct occStruct> Ipairs2;
-
-  BD_BWT_index<> index((uint8_t*)text.c_str());
-  BD_BWT_index<> index2((uint8_t*)text2.c_str());
- 
-  std::vector<bool> marked1(index.size(),false);
-  std::vector<bool> marked2(index2.size(),false);
-
-  auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
-  auto retSA2 = buildSAfromBWT(index2);
-
-  auto mems  = bwt_mem2(index, index2);//Find MEMS between two BDBWT indexes.
-  sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
+vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
   vector<tuple<int,int,int>> filtered;
   for(auto m : mems){
     int i,j,d;
@@ -620,96 +412,5 @@ int main(){
       }
     }
   }
-  
-  vector<tuple<int,int,int>> retVector;
-  int p = 0;
-  for(auto m : filtered){
-    struct occStruct newOcc;
-    struct occStruct newOcc2;
-    int i,j,d;
-    tie(i,j,d) = m;
-    cout << "MEM: " << i << ", " << j << ", " << d << endl;
-    newOcc.key  = i;
-    newOcc2.key = j;
-    newOcc.primary  = p;
-    newOcc2.primary = p; p++;
-    marked1[i] = true;
-    marked2[j] = true;
-    Ipairs.push_back(newOcc);
-    Ipairs2.push_back(newOcc2);
-  }
-  cout << "before batch locate\n";
-  for(int i = 0; i < Ipairs.size(); i++){
-    cout << Ipairs[i].key << ", " << Ipairs[i].primary << " - "<< Ipairs2[i].key << ", "<<Ipairs2[i].primary << "\n";
-  }
-  auto bl1 = batchLocate(Ipairs,marked1,index);
-  auto bl2 = batchLocate(Ipairs2,marked2,index2);
-
-  cout << "after batch locate\n";
-  for(int i = 0; i < bl1.size(); i++){
-    cout << bl1[i].key << ", " << bl1[i].primary << " - "<< bl2[i].key << ", "<< bl2[i].primary << "\n";
-  }
-  int maxkey = -1;
-  
-  for(int k = 0; k < filtered.size(); k++){
-    int i,j,d;
-    tie(i,j,d) = filtered[bl1[k].primary];
-    int ik = bl1[k].key+1;
-    int jk = bl2[k].key+1;
-    if(ik+1 >= index.size()-1){ //Special case when interval begins at the beginning, SA[i]=text.size()
-      ik = index.size()-ik;
-    }
-    if(jk+1 >= index2.size()-1){
-      jk = index2.size()-jk;
-    }
-    retVector.push_back(make_tuple(ik, jk, d));
-  }
-
-  for(auto k : retVector){
-    int i,j,d;
-    tie(i,j,d) = k;
-
-    cout << "triple: (" << i <<","<< j <<","<< d <<")\n";
-  }
-  
-  //Naive returning of the intervals
-  for(auto a : filtered){
-    int i, j, depth;
-    tie(i,j,depth) = a;
-    int begin_i= retSA[i]+1;
-    int begin_j= retSA2[j]+1;
-    
-    //Handling the specific special case when SA^S[i] = text.size(); We use index.size()-1 instead so wouldn't need to keep the text in memory at all.
-    if(begin_i >= index.size()-1){
-      begin_i = index.size()-retSA[i]-1; //Index.size() will always be text.size()+1 due to the added END marker. Furthermore, we need to minus one to get proper offset from general case of begin_i = retSA[i]+1;
-    }
-    //Handling the specific special case when SA^T[j] = text2.size(); We use index2.size()-1 instead so wouldn't need to keep the text in memory at all.
-    if(begin_j >= index2.size()-1){
-      begin_j = index2.size()-retSA2[j]-1; //Analogously to above. 
-    }
-    int end_i  = begin_i+depth-1;
-    int end_j  = begin_j+depth-1;
-    
-    cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
-    
-    cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
-    for(int b = begin_i; b <= end_i; b++){
-      cout << text[b]; //For verificiation of results
-    }
-    cout << "\n";
-    cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
-    for(int b = begin_j; b <= end_j; b++){
-      cout << text2[b]; //For verification of results
-    }
-    cout << "\n";
-  }
-
-  pretty_print_all(index,text);
-  pretty_print_all(index2,text2);
-
-  //auto chains = chaining(Ipairs, text2.size());
-  //for(int i = 0; i < chains.size(); i++){
-  //cout <<"Chain["<< i << "]: " << chains[i] << "\n";
-  //}
+  return filtered;
 }
-
