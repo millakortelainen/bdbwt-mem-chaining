@@ -93,11 +93,22 @@ vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
 }
 /* END_SORT */
 
-int chainingMax(int &a, int &b, int &c, int &d){
-  auto e = (a > b)? a:b;
-  auto f = (c > d)? c:d;
-  return (e > f)? e:f;
+/*BEGIN_INTERVALS*/
+vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup, bool sortIntervals){
+  vector<Interval_pair> Ipairs;
+  for(auto b : tup){
+    int i,j,d;
+    tie(i,j,d) = b;
+    Interval_pair temp(i,i+d-1, j,j+d-1);
+    cout << "pushing " << temp.toString() << endl;
+    Ipairs.push_back(temp);	 
+  }
+  if(sortIntervals){
+    sort(Ipairs.begin(), Ipairs.end(), intervalSort);
+  }
+  return Ipairs;
 }
+/*END_INTERVALS*/
 
 /*BEGIN_AUX*/
 /** Map LF values for the given index.
@@ -162,6 +173,13 @@ vector<int> buildSAfromBWT(BD_BWT_index<> idxS, int i = 0){
   
   return retSA;    
 }
+
+int chainingMax(int &a, int &b, int &c, int &d){
+  auto e = (a > b)? a:b;
+  auto f = (c > d)? c:d;
+  return (e > f)? e:f;
+}
+
 /* END_AUX */
 
 

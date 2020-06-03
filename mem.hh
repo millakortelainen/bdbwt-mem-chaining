@@ -419,17 +419,17 @@ vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
     }else{
       int x,y,z;
       tie(x,y,z) = filtered[filtered.size()-1];
-      if(i > x){
-	filtered.push_back(m);
-      }else if(i == x && d > z){
-	filtered.pop_back();
+      if(i == x && y == j){
+	
+      }else{
 	filtered.push_back(m);
       }
     }
   }
   return filtered;
 }
-//Traceback needs work
+ 
+
 vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
@@ -458,7 +458,6 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
     T_d.insertCell(key, skey2, INT_MIN);
     if(verboseChaining) cout << endl;
 
-
     auto p1 = make_pair(A[j].forward.left, j);
     auto p2 = make_pair(A[j].forward.right, j);
     E_1.push_back(p1);
@@ -475,51 +474,57 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
     int j = e.second;
       
     Interval_pair I = A[j];
+    auto rlfl = I.reverse.left - I.forward.left;
+    
     if(verboseChaining) cout << A[j].toString() << endl;
     if(verboseChaining) cout << "i: " << i << ", j: " << j << endl;
     if(verboseChaining) cout << "I.forward.left == E_1[i].first == " << I.forward.left << " == " << E_1[i].first << endl;
     
     if(I.forward.left == E_1[i].first){
       if(verboseChaining) cout <<"Interval: " << I.toString() << endl;
-      C_a[j].second = T_a.rangeMax(0, I.reverse.left).second; //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
-      C_b[j].second = I.reverse.left + T_b.rangeMax(I.reverse.left,I.reverse.right).second; 
-      C_c[j].second = I.forward.left + T_c.rangeMax(INT_MIN,I.reverse.left - I.forward.left,0, I.forward.right).second;
-      C_d[j].second = I.reverse.left + T_d.rangeMax(I.reverse.left - I.forward.left+1,INT_MAX,0, I.reverse.right).second;
-
-      C_a[j].first = T_a.rangeMax(0, I.reverse.left).first.primary.second;
-      C_b[j].first = T_b.rangeMax(I.reverse.left,I.reverse.right).first.primary.second; 
-      C_c[j].first = T_c.rangeMax(INT_MIN,I.reverse.left - I.forward.left,0, I.forward.right).first.primary.second;
-      C_d[j].first = T_d.rangeMax(I.reverse.left - I.forward.left+1,INT_MAX,0, I.reverse.right).first.primary.second;
-
-      if(verboseChaining) cout << "maxCandinates: " << C_a[j].second << "("<<C_a[j].first<<"),"
-	                        << C_b[j].second << "("<<C_b[j].first<<"),"
-	                        << C_c[j].second << "("<<C_c[j].first<<"),"
-	                        << C_d[j].second << "("<<C_d[j].first<<")," << endl;
+      
+      auto a = T_a.rangeMax(0,			I.reverse.left); //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
+      auto b = T_b.rangeMax(I.reverse.left,	I.reverse.right);
+      auto c = T_c.rangeMax(INT_MIN,		rlfl,	0, I.forward.right);
+      auto d = T_d.rangeMax(rlfl+1,		INT_MAX,0, I.reverse.right);
+      
+      C_a[j].first = a.first.primary.second;	C_a[j].second = a.second; 
+      C_b[j].first = b.first.primary.second;	C_b[j].second = I.reverse.left + b.second; 
+      C_c[j].first = c.first.primary.second;	C_c[j].second = I.forward.left + c.second;
+      C_d[j].first = d.first.primary.second;	C_d[j].second = I.reverse.left + d.second;
+      
+      if(verboseChaining) cout << "maxCandinates: "   << C_a[j].second << "(" << C_a[j].first <<"),"
+			       << C_b[j].second << "("<< C_b[j].first  << "),"
+			       << C_c[j].second << "("<< C_c[j].first  << "),"
+			       << C_d[j].second << "("<< C_d[j].first  << ")," << endl;
       
       auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-
       if     (C_a[j].second == max) C[j] = C_a[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
       else if(C_c[j].second == max) C[j] = C_c[j];
       else if(C_d[j].second == max) C[j] = C_d[j];
 
+      auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
+      C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));
+      
       if(verboseChaining) cout << "max C[j] = " << C[j].second << endl;
+      if(verboseChaining) cout << "C_p= " << cpsum << ", " << j << endl;
+      if(verboseChaining) cout << "I.forward.right = " << I.forward.right << " I forward.left = " << I.forward.left << " C_p = " << cpsum << endl;
 
-      if(verboseChaining) cout << "C_p= " << C[j].second+I.forward.right-I.forward.left+1 << ", " << j << endl;
-      C_p[j] = make_pair(C[j].second+I.forward.right-I.forward.left+1, make_pair(C[j].first,j));
-      
-      if(verboseChaining) cout << "I.forward.right = " << I.forward.right << " I forward.left = " << I.forward.left << " C_p = " << C[j].second+I.forward.right-I.forward.left+1 << endl;
-      
-      T_c.upgrade(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, (int)C[j].second-(int)I.forward.left);
-      if(verboseChaining) cout << "upgraded T_c (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= "<<j<<A[j].toString()<<" into: " << (int)C[j].second-(int)I.forward.left << endl; 
-      T_d.upgrade(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, (int)C[j].second-(int)I.reverse.left);
-      if(verboseChaining) cout << "upgraded T_d (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= "<<j<<A[j].toString()<<" into: " << (int)C[j].second-(int)I.reverse.left << endl; 
-    }else{
+      auto upgsumL = (int)C[j].second-(int)I.forward.left;
+      T_c.upgrade(make_pair(rlfl, j), I.forward.right, upgsumL);
+      if(verboseChaining) cout << "upgraded T_c (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= " << j << A[j].toString() <<" into: " << upgsumL << endl;
+
+      auto upgsumR = (int)C[j].second-(int)I.reverse.left;
+      T_d.upgrade(make_pair(rlfl, j), I.forward.right, upgsumR);
+      if(verboseChaining) cout << "upgraded T_d (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= " << j << A[j].toString() <<" into: " << upgsumR << endl;  
+    }
+    else{
       if(verboseChaining) cout << "Else statement, upgrade and update!" << endl;
-      T_a.upgrade(make_pair(I.reverse.right,j),C_p[j].first);
-      T_b.upgrade(make_pair(I.reverse.right,j),C[j].second- I.reverse.left);
-      T_c.update(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, INT_MIN);
-      T_d.update(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, INT_MIN);
+      T_a.upgrade(make_pair(I.reverse.right, j), C_p[j].first);
+      T_b.upgrade(make_pair(I.reverse.right, j), C[j].second- I.reverse.left);
+      T_c.update(make_pair(rlfl, j), I.forward.right, INT_MIN);
+      T_d.update(make_pair(rlfl, j), I.forward.right, INT_MIN);
     }
     if(verboseChaining) cout << "end \n";
   }
