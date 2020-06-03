@@ -48,9 +48,25 @@ int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
 bool pairSort(const pair<int,int> &first, const pair<int,int> &second){
   return (first.first < second.first);
 }
+bool pairSortSecond(const pair<int,int> &first, const pair<int,int> &second){
+  return (first.second < second.second);
+}
+bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int,int>> &second){
+  return (first.first < second.first);
+}
 bool intervalSort(const Interval_pair &a, const Interval_pair &b){
-  //return ((a.reverse.left - a.forward.left) < (b.reverse.left - b.forward.left));
+  int aac = (a.reverse.left - a.forward.left);
+  int bac = (b.reverse.left - a.forward.left);
+  int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
+  int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
   return (a < b);
+}
+bool intervalSortDiff(const Interval_pair &a, const Interval_pair &b){
+  int aac = (a.reverse.left - a.forward.left);
+  int bac = (b.reverse.left - b.forward.left);
+  int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
+  int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
+  return (abs(aac) < abs(bac));
 }
 
 vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
@@ -77,9 +93,9 @@ vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
 }
 /* END_SORT */
 
-int maxFour(int &a, int &b, int &c, int &d){
-  int e = (a > b)? a:b;
-  int f = (c > d)? c:d;
+int chainingMax(int &a, int &b, int &c, int &d){
+  auto e = (a > b)? a:b;
+  auto f = (c > d)? c:d;
   return (e > f)? e:f;
 }
 

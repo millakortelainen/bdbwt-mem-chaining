@@ -96,7 +96,7 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
 int main(){
   string text;
   string text2;
-  switch(4){
+  switch(500){
   case 1: {
     text  = "GTGCGTGATCATCATTT";
     text2 = "AGTGCAAAGTGATTACC";
@@ -144,53 +144,213 @@ int main(){
   for(auto b : bo){
     int i,j,d;
     tie(i,j,d) = b;
-    if(i <= j){
+    if(i <= j || true){
       Interval_pair temp(i,i+d-1, j,j+d-1);
-      cout << temp.toString() << endl;
+      cout << "pushing " << temp.toString() << endl;
       Ipairs.push_back(temp);
+	  
+    }else{
+      //cout << temp.toString() << endl;
+      //Ipairs.push_back(temp);
     }
   }
   sort(Ipairs.begin(), Ipairs.end(), intervalSort);
-  auto chains = chaining(Ipairs, text2.size());
-  for(int i = 0; i < chains.size(); i++){
-    cout <<"Chain["<< i << "]: " << chains[i] << "\n";
+  vector<Interval_pair> Ipairs2;
+  Ipairs2.push_back(Ipairs[0]);
+  bitset<500> bs;
+  bitset<500> bs2;
+
+  int llimit = (Ipairs[0].forward.left < Ipairs[0].reverse.left)? Ipairs[0].forward.left : Ipairs[0].reverse.left;
+  int rlimit = (Ipairs[0].forward.right > Ipairs[0].reverse.right)? Ipairs[0].forward.right : Ipairs[0].reverse.right;
+  for(int a = llimit; a <= rlimit; a++){
+    bs.set(a);
   }
-  vector<pair<Interval_pair, int>> chainPairs;
-  int lf, lr, lc;
-  cout << Ipairs.size() << endl;
-  chainPairs.push_back(make_pair(Ipairs[0],chains[0]));
-  lf = Ipairs[0].forward.right;
-  lr = Ipairs[0].reverse.right;
-  lc = chains[0];
   for(int i = 1; i < Ipairs.size(); i++){
-    if((Ipairs[i].forward.left < lf || Ipairs[i].reverse.left < lr)){
-      if(lc < chains[i]){
-	cout << Ipairs[i].forward.left <<" < " << lf <<" && "<< lc<< " < "<< chains[i] << endl;;
-	chainPairs.pop_back();
-	chainPairs.push_back(make_pair(Ipairs[i],chains[i]));
-	lf = Ipairs[i].forward.right;
-	lr = Ipairs[i].reverse.right;
-      }
-      continue;      
+    int test = 0;
+    int llimit, rlimit, l2limit, r2limit;
+    auto ip = Ipairs[i];
+    auto la = Ipairs[i-1];
+
+    if(Ipairs[i].forward.left < Ipairs[i].reverse.left){
+      llimit = Ipairs[i].forward.left;
+      rlimit = Ipairs[i].forward.right;
+      l2limit = Ipairs[i].reverse.left;
+      r2limit = Ipairs[i].reverse.right;
+    }else{
+      llimit = Ipairs[i].reverse.left;
+      rlimit = Ipairs[i].reverse.right;
+      l2limit = Ipairs[i].forward.left;
+      r2limit = Ipairs[i].forward.right;
     }
-    // if(Ipairs[i].reverse.left < lr && lc < chains[i]){
-    //   cout << Ipairs[i].reverse.left <<" < " << lr <<" && "<< lc<< " < "<< chains[i] << endl;;
-    //   chainPairs.pop_back();
-    //   chainPairs.push_back(make_pair(Ipairs[i],chains[i]));
-    //   lr = Ipairs[i].reverse.right;
-    //   lc = chains[i];
-    //   continue;
-    //    }
-    chainPairs.push_back(make_pair(Ipairs[i],chains[i]));
-    continue;
+    for(int a = llimit; a <= rlimit; a++){
+      if(test >= (ip.forward.right - ip.forward.left)*2){
+       	break;
+       }
+      if(bs[a]){
+	test = test +1;
+	//	cout << "test true on bit " << a << " Value of test is now: " << test << endl;
+      }
+    }
+    for(int a = l2limit; a <= r2limit; a++){
+      if(test >= (ip.forward.right - ip.forward.left)*2){
+       	break;
+       }
+      if(bs2[a]){
+	test = test +1;
+	//	cout << "test true on bit " << a << " Value of test is now: " << test << endl;
+      }
+    }
+    //    cout << "test["<<i<<"]("<<ip.toString()<<" = " << test << ", L - R = " <<  (ip.forward.right - ip.forward.left)+1<< endl;
+    if(test < (ip.forward.right - ip.forward.left)+(ip.reverse.right-ip.forward.left)+1){
+      Ipairs2.push_back(ip);
+      for(int a = llimit; a <= rlimit; a++){
+	bs[a] = 1;
+      }
+      for(int a = l2limit; a <= r2limit; a++){
+	bs2[a] = 1;
+      }
+    }
   }
-  int totalScore = 0;
-  for(auto c : chainPairs){
-    auto i = c.first;
-    auto cp = c.second;
-    totalScore += cp;
-    cout << i.toString() << " score: " << cp << ", total score = " << totalScore << endl;
+  sort(Ipairs2.begin(), Ipairs2.end(), intervalSortDiff);
+  // bitset<(int)index.size()> bs1;
+  // bitset<(int)index2.size()> bs2;
+  // for(auto i : Ipairs){
+  //   int test1 = 0;
+  //   int test2 = 0;
+  //   int a = i.forward.left;
+  //   int b = i.forward.right;
+  //   int c = i.reverse.left;
+  //   int d = i.reverse.right;
+
+  //   for(int x = a; a <= b; a++){
+  //     if(test1 > (b-a)){
+  // 	test1 = -1;
+  // 	break;
+  //     }
+  //     if(!bs1.test(x)){
+  // 	test1++;
+  //     }
+  //   }
+  //   for(int y = c; c <= d; c++){
+  //     if(test2 > (d-c)){
+  // 	test2 = -1;
+  // 	break;
+  //     }
+  //     if(!bs2.test(y)){
+  // 	test2++;
+  //     }  
+  // }
+  
+    //  sort(Ipairs.begin(), Ipairs.end(), intervalSortDiff);
+  for(int i = 0; i < Ipairs.size(); i++){
+    cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
   }
+  for(int i = 0; i < Ipairs2.size(); i++){
+    cout <<"Ipairs2["<< i << "]: " << Ipairs2[i].toString() << "\n";
+  }
+  //  return 0;
+  
+  auto chains = chaining(Ipairs, text2.size());
+  cout << "chaining done" << endl;
+  //  sort(chains.begin(), chains.end(), chainPairSort);
+  int maxIndex = 0;
+  int maxVal = 0;
+  
+  for(int i = 0; i < chains.size(); i++){
+    int tempVal = chains[i].first;
+    if(tempVal > maxVal){
+      maxVal = tempVal;
+      maxIndex = i;
+    }
+  }
+  for(int i = 0; i < chains.size(); i++){
+    cout <<"Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
+  }
+  vector<Interval_pair> chainIntervals;
+  chainIntervals.push_back(Ipairs.at(chains.at(maxIndex).second.second));
+  int last = -1;
+
+  int i = chains[maxIndex].second.first;
+
+  for(int j = chains.size()-1; j >= 0; j--){
+    //cout << "i = " << i << " last = "<< last << "...\t";
+    if(i < 0){
+      break;
+    }
+    //    cout << "chains[i].first= " << chains.at(i).first << "...\t\t";
+    //cout << "chains[i].second= " << chains.at(i).second.first <<":"<<chains.at(i).second.second << "...\t";
+    if(chains.at(i).second.second >= 0){
+      auto I = Ipairs.at(chains.at(i).second.second);
+      if(chainIntervals.size() > 0 &&
+	 chainIntervals.at(chainIntervals.size()-1).forward.left >= I.forward.left &&
+	 chainIntervals.at(chainIntervals.size()-1).reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
+	
+	//	cout << "["<<count<<"] "<< I.toString() << endl;
+	chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
+	last = i;
+	//count++;
+	i = chains[i].second.first;
+	if(last == 0 || last == i){
+	  break;
+	}
+      }
+    }
+    else{
+      i = j;
+    }
+  }
+  int count = 0;
+  for(auto c : chainIntervals){
+    cout << "Chain["<<count<<"]: "<<c.toString()<<endl;
+    count++;
+  }
+  cout << endl;
+  // vector<pair<Interval_pair, int>> chainPairs;
+  // int lf, lr, lc;
+  // cout << Ipairs.size() << endl;
+  // //  chainPairs.push_back(make_pair(Ipairs[0],chains[0].first));
+  // lf = -1;
+  // lr = -1;
+  // //  lc = chains[0].first;
+  // for(int j = 0; j < chains.size(); j++){
+  //   chainPairs.push_back(make_pair(Ipairs[chains[j].second],chains[j].first));
+  //   continue;
+    
+  //   int i = chains[j].second;
+  //   if(chains[j].first < 0){
+  //     continue;
+  //   }
+  //   if((Ipairs[i].forward.left < lf && Ipairs[i].reverse.left < lr)){
+  //     if(lc > chains[j].first){
+  // 	cout << Ipairs[i].forward.left <<" < " << lf <<" && "<< lc<< " < "<< chains[i].first << endl;;
+  // 	chainPairs.pop_back();
+  // 	chainPairs.push_back(make_pair(Ipairs[i],chains[j].first));
+  // 	lf = Ipairs[i].forward.left;
+  // 	lr = Ipairs[i].reverse.left;
+  // 	lc = chains[i].first;
+  // 	continue;
+  //     }
+  //   }
+  //   // if(Ipairs[i].reverse.left < lr && lc < chains[i]){
+  //   //   cout << Ipairs[i].reverse.left <<" < " << lr <<" && "<< lc<< " < "<< chains[i] << endl;;
+  //   //   chainPairs.pop_back();
+  //   //   chainPairs.push_back(make_pair(Ipairs[i],chains[i]));
+  //   //   lr = Ipairs[i].reverse.right;
+  //   //   lc = chains[i];
+  //   //   continue;
+  //   //    }
+  //   chainPairs.push_back(make_pair(Ipairs[i],chains[j].first));
+  //   continue;
+  // }
+  // int totalScore = 0;
+  // for(auto c : chainPairs){
+  //   auto i = c.first;
+  //   auto cp = c.second;
+  //   if(cp > 0){
+  //     totalScore += cp;
+  //     cout << i.toString() << " score: " << cp << ", total score = " << totalScore << endl;
+  //   }
+  // }
 }
   
 

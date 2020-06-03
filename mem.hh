@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <tuple>
 #include <stack>
+#include <bits/stdc++.h> 
 int minimumDepth = 1;
 using namespace std;
 
@@ -19,7 +20,9 @@ bool verboseI = false;
 bool verboseMaximum = false;
 bool verboseSubroutine = false;
 bool verboseElement = false;
+bool verboseChaining = false;
 bool naiveCrossProduct = false;
+
 
 /** Enumerates the unique characters on the forward index of the BWT.
     param idx BD_BWT_index<> Burrows-wheeler transform
@@ -426,60 +429,100 @@ vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
   }
   return filtered;
 }
-
-vector<int> chaining(vector<Interval_pair> A, int size){
+//Traceback needs work
+vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
   rsa2d T_c = rsa2d(size);
   rsa2d T_d = rsa2d(size);
-  vector<int> C_a(A.size(),-1);
-  vector<int> C_b(A.size(),-1);
-  vector<int> C_c(A.size(),-1);
-  vector<int> C_d(A.size(),-1);
-  vector<int> C_p(A.size(),-1);
-  vector<int> C(A.size(),-1);
+  vector<pair<int, int>> C_a(A.size(), make_pair(0,0));
+  vector<pair<int, int>> C_b(A.size(), make_pair(0,0));
+  vector<pair<int, int>> C_c(A.size(), make_pair(0,0));
+  vector<pair<int, int>> C_d(A.size(), make_pair(0,0));
+  vector<pair<int,pair<int,int>>> C_p(A.size(), make_pair(0,make_pair(0,0)));
+  vector<pair<int, int>> C(A.size(), make_pair(0,0));
   vector<pair<int,int>> E_1;
   vector<pair<int,int>> E_2;
-  T_a.update(0,-999);
-  T_b.update(0,-999);
+  T_a.insertCell(make_pair(0,0),INT_MIN);
+  T_b.insertCell(make_pair(0,0),INT_MIN);
   for(int j = 0; j < A.size(); j++){
-    T_a.update(A[j].reverse.right, -999);
-    T_b.update(A[j].reverse.right, -999);
-    if((A[j].reverse.left - A[j].forward.left) >= 0){
-      T_c.update(A[j].reverse.left - A[j].forward.left,A[j].forward.right,-999);
-      T_d.update(A[j].reverse.left - A[j].forward.left,A[j].reverse.right,-999);
-    }
+    T_a.insertCell(make_pair(A[j].reverse.right,j), INT_MIN);
+    T_b.insertCell(make_pair(A[j].reverse.right,j), INT_MIN);
+
+    auto key = make_pair(A.at(j).reverse.left - A.at(j).forward.left,j);
+    auto skey1 = A.at(j).forward.right;
+    auto skey2 = A.at(j).reverse.right;
+    
+    if(verboseChaining) cout << "Initializer updating : " << key.first << ", " << key.second << ", with secondary keys: " << skey1 << " & " << skey2 << endl;
+    T_c.insertCell(key, skey1, INT_MIN);
+    T_d.insertCell(key, skey2, INT_MIN);
+    if(verboseChaining) cout << endl;
+
+
     auto p1 = make_pair(A[j].forward.left, j);
     auto p2 = make_pair(A[j].forward.right, j);
     E_1.push_back(p1);
-    E_2.push_back(p2);
+    E_1.push_back(p2);
+    if(verboseChaining) cout << "Pushed E_1: " << p1.first << ", " << p1.second << " & " << p2.first << ", " << p2.second << endl; 
   }
-  for(auto k : E_2){
-    E_1.push_back(k);
-  }
+  if(verboseChaining) cout << "E_1 size: " << E_1.size() << endl;
+  T_a.upgrade(make_pair(0,0),0);
   sort(E_1.begin(), E_1.end(), pairSort);
 
   for(int i = 0; i < E_1.size(); i++){
-    int j = E_1[i].second;
-    Interval_pair I = A[j];
-
-    if(I.forward.left == E_1[i].first){
-      C_a[j] = T_a.rangeMax(0, I.reverse.left-1).second;
-      C_b[j] = I.reverse.left + T_b.rangeMax(I.reverse.left,I.reverse.right).second; 
-      C_c[j] = I.forward.left + T_c.rangeMax(0,I.reverse.left - I.forward.left,0, I.forward.right).second;
-      C_d[j] = I.reverse.left + T_d.rangeMax((I.reverse.left - I.forward.left)+1,999,0, I.reverse.right).second;
-
-      C[j] = maxFour(C_a[j], C_b[j],C_c[j],C_d[j]);
-      C_p[j] = C[j]+I.forward.right-I.forward.left+1;
+    auto e = E_1[i];
+    if(verboseChaining) cout << E_1[i].first << endl;
+    int j = e.second;
       
-      T_c.upgrade(I.reverse.left - I.forward.left, I.forward.right, (int)C[j]-(int)I.forward.left);
-      T_d.upgrade(I.reverse.left - I.forward.left, I.forward.right, (int)C[j]-(int)I.reverse.left);
+    Interval_pair I = A[j];
+    if(verboseChaining) cout << A[j].toString() << endl;
+    if(verboseChaining) cout << "i: " << i << ", j: " << j << endl;
+    if(verboseChaining) cout << "I.forward.left == E_1[i].first == " << I.forward.left << " == " << E_1[i].first << endl;
+    
+    if(I.forward.left == E_1[i].first){
+      if(verboseChaining) cout <<"Interval: " << I.toString() << endl;
+      C_a[j].second = T_a.rangeMax(0, I.reverse.left).second; //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
+      C_b[j].second = I.reverse.left + T_b.rangeMax(I.reverse.left,I.reverse.right).second; 
+      C_c[j].second = I.forward.left + T_c.rangeMax(INT_MIN,I.reverse.left - I.forward.left,0, I.forward.right).second;
+      C_d[j].second = I.reverse.left + T_d.rangeMax(I.reverse.left - I.forward.left+1,INT_MAX,0, I.reverse.right).second;
+
+      C_a[j].first = T_a.rangeMax(0, I.reverse.left).first.primary.second;
+      C_b[j].first = T_b.rangeMax(I.reverse.left,I.reverse.right).first.primary.second; 
+      C_c[j].first = T_c.rangeMax(INT_MIN,I.reverse.left - I.forward.left,0, I.forward.right).first.primary.second;
+      C_d[j].first = T_d.rangeMax(I.reverse.left - I.forward.left+1,INT_MAX,0, I.reverse.right).first.primary.second;
+
+      if(verboseChaining) cout << "maxCandinates: " << C_a[j].second << "("<<C_a[j].first<<"),"
+	                        << C_b[j].second << "("<<C_b[j].first<<"),"
+	                        << C_c[j].second << "("<<C_c[j].first<<"),"
+	                        << C_d[j].second << "("<<C_d[j].first<<")," << endl;
+      
+      auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
+
+      if     (C_a[j].second == max) C[j] = C_a[j];
+      else if(C_b[j].second == max) C[j] = C_b[j];
+      else if(C_c[j].second == max) C[j] = C_c[j];
+      else if(C_d[j].second == max) C[j] = C_d[j];
+
+      if(verboseChaining) cout << "max C[j] = " << C[j].second << endl;
+
+      if(verboseChaining) cout << "C_p= " << C[j].second+I.forward.right-I.forward.left+1 << ", " << j << endl;
+      C_p[j] = make_pair(C[j].second+I.forward.right-I.forward.left+1, make_pair(C[j].first,j));
+      
+      if(verboseChaining) cout << "I.forward.right = " << I.forward.right << " I forward.left = " << I.forward.left << " C_p = " << C[j].second+I.forward.right-I.forward.left+1 << endl;
+      
+      T_c.upgrade(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, (int)C[j].second-(int)I.forward.left);
+      if(verboseChaining) cout << "upgraded T_c (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= "<<j<<A[j].toString()<<" into: " << (int)C[j].second-(int)I.forward.left << endl; 
+      T_d.upgrade(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, (int)C[j].second-(int)I.reverse.left);
+      if(verboseChaining) cout << "upgraded T_d (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= "<<j<<A[j].toString()<<" into: " << (int)C[j].second-(int)I.reverse.left << endl; 
     }else{
-      T_a.upgrade(I.reverse.right,C_p[j]);
-      T_b.upgrade(I.reverse.right,C[j]- I.reverse.left);
-      T_c.update(I.reverse.left - I.forward.left, I.forward.right, -999);
-      T_d.update(I.reverse.left - I.forward.left, I.forward.right, -999);
+      if(verboseChaining) cout << "Else statement, upgrade and update!" << endl;
+      T_a.upgrade(make_pair(I.reverse.right,j),C_p[j].first);
+      T_b.upgrade(make_pair(I.reverse.right,j),C[j].second- I.reverse.left);
+      T_c.update(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, INT_MIN);
+      T_d.update(make_pair(I.reverse.left - I.forward.left,j), I.forward.right, INT_MIN);
     }
+    if(verboseChaining) cout << "end \n";
   }
+  if(verboseChaining) cout << "end2 \n";
   return C_p;
 }
