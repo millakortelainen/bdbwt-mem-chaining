@@ -108,7 +108,9 @@ void chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair
     }
   }
   vector<Interval_pair> chainIntervals;
+  vector<int> symcov;
   chainIntervals.push_back(Ipairs.at(chains.at(maxIndex).second.second)); //pushing first chain where we begin the traceback.
+  symcov.push_back(chains.at(maxIndex).first);
   int last = -1;
   int i = chains[maxIndex].second.first;
   for(int j = chains.size()-1; j >= 0; j--){
@@ -122,7 +124,8 @@ void chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair
       if(chainIntervals.size() > 0 &&
 	 chainIntervals.at(chainIntervals.size()-1).forward.left >= I.forward.left &&
 	 chainIntervals.at(chainIntervals.size()-1).reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
-	
+
+	symcov.push_back(chains.at(i).first);
 	chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
 	last = i;
 	i = chains[i].second.first;
@@ -134,7 +137,7 @@ void chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair
   }
   int count = 0;
   for(auto c : chainIntervals){
-    cout << "Chain["<<count<<"]: "<<c.toString()<<endl;
+    cout << "Chain["<<count<<"]: "<<c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
     count++;
   }
 }
@@ -187,15 +190,16 @@ int main(){
   sort(bo.begin(), bo.end(), memSort);
   
   vector<Interval_pair> Ipairs = returnMemTuplesToIntervals(bo, true);
+  auto Ipairs2 = filterIntervals(Ipairs);
  
-  for(int i = 0; i < Ipairs.size(); i++){
-    cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
+  for(int i = 0; i < Ipairs2.size(); i++){
+    cout <<"Ipairs["<< i << "]: " << Ipairs2[i].toString() << "\n";
   }
   
-  auto chains = chaining(Ipairs, text2.size());
+  auto chains = chaining(Ipairs2, text2.size());
   cout << "Chaining done" << endl;
 
-  chainingOutput(chains, Ipairs);
+  chainingOutput(chains, Ipairs2);
 }
   
 

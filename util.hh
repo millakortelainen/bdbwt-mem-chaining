@@ -11,7 +11,6 @@ struct suffix{
   int index;
   string suffix;
 };
-
 struct occStruct{
   int key;
   int primary;
@@ -22,7 +21,6 @@ struct occStruct{
 int suffcmp(struct suffix first, struct suffix last){
   return (first.suffix < last.suffix)? 1:0;
 }
-
 int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
   int i,j,d;
   int x,y,z;
@@ -108,6 +106,24 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   }
   return Ipairs;
 }
+vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs){
+  vector<Interval_pair> Ipairs2;
+  Ipairs2.push_back(Ipairs[0]);
+  for(int i = 1; i < Ipairs.size(); i++){
+    auto ip = Ipairs.at(i);
+    auto io = Ipairs.at(i-1);
+    if(ip.forward.left == io.forward.left && ip.forward.right == io.forward.right){
+      if(abs(ip.reverse.left-ip.forward.left) < abs(io.reverse.left-ip.forward.left)){
+	Ipairs2.pop_back();	
+      }
+      Ipairs2.push_back(ip);
+    }else{
+      Ipairs2.push_back(ip);
+    }
+  }
+  return Ipairs2;
+}
+  
 /*END_INTERVALS*/
 
 /*BEGIN_AUX*/
@@ -180,6 +196,25 @@ int chainingMax(int &a, int &b, int &c, int &d){
   return (e > f)? e:f;
 }
 
+vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
+  vector<tuple<int,int,int>> filtered;
+  for(auto m : mems){
+    int i,j,d;
+    tie(i,j,d) = m;
+    if(filtered.size() == 0){
+      filtered.push_back(m);
+    }else{
+      int x,y,z;
+      tie(x,y,z) = filtered[filtered.size()-1];
+      if(i == x && y == j){
+	
+      }else{
+	filtered.push_back(m);
+      }
+    }
+  }
+  return filtered;
+}
 /* END_AUX */
 
 

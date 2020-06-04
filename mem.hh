@@ -1,16 +1,17 @@
 #include <iostream>
 #include "include/BD_BWT_index.hh"
 #include "include/Iterators.hh"
+#include "util.hh"
 #include "rsa1d.hh"
 #include "rsa2d.hh"
-#include "util.hh"
 #include <string>
 #include <set>
 #include <stdio.h>
 #include <inttypes.h>
 #include <tuple>
 #include <stack>
-#include <bits/stdc++.h> 
+#include <bits/stdc++.h>
+#include <future>
 int minimumDepth = 1;
 using namespace std;
 
@@ -409,27 +410,6 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
   return ret;
 }
 
-vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
-  vector<tuple<int,int,int>> filtered;
-  for(auto m : mems){
-    int i,j,d;
-    tie(i,j,d) = m;
-    if(filtered.size() == 0){
-      filtered.push_back(m);
-    }else{
-      int x,y,z;
-      tie(x,y,z) = filtered[filtered.size()-1];
-      if(i == x && y == j){
-	
-      }else{
-	filtered.push_back(m);
-      }
-    }
-  }
-  return filtered;
-}
- 
-
 vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
@@ -464,6 +444,10 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
     E_1.push_back(p2);
     if(verboseChaining) cout << "Pushed E_1: " << p1.first << ", " << p1.second << " & " << p2.first << ", " << p2.second << endl; 
   }
+  T_c.sortArray();
+  T_d.sortArray();
+  T_a.sortArray();
+  T_b.sortArray();
   if(verboseChaining) cout << "E_1 size: " << E_1.size() << endl;
   T_a.upgrade(make_pair(0,0),0);
   sort(E_1.begin(), E_1.end(), pairSort);
@@ -499,10 +483,10 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
 			       << C_d[j].second << "("<< C_d[j].first  << ")," << endl;
       
       auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-      if     (C_a[j].second == max) C[j] = C_a[j];
+      if     (C_c[j].second == max) C[j] = C_c[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
-      else if(C_c[j].second == max) C[j] = C_c[j];
       else if(C_d[j].second == max) C[j] = C_d[j];
+      else if(C_a[j].second == max) C[j] = C_a[j];
 
       auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
       C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));
