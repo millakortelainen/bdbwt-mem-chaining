@@ -477,16 +477,17 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
       C_c[j].first = c.first.primary.second;	C_c[j].second = I.forward.left + c.second;
       C_d[j].first = d.first.primary.second;	C_d[j].second = I.reverse.left + d.second;
       
-      if(verboseChaining) cout << "maxCandinates: "   << C_a[j].second << "(" << C_a[j].first <<"),"
-			       << C_b[j].second << "("<< C_b[j].first  << "),"
-			       << C_c[j].second << "("<< C_c[j].first  << "),"
-			       << C_d[j].second << "("<< C_d[j].first  << ")," << endl;
+      if(verboseChaining) cout << "maxCandinates: "
+			       << C_a[j].second << "("<< C_a[j].first << "),"
+			       << C_b[j].second << "("<< C_b[j].first << "),"
+			       << C_c[j].second << "("<< C_c[j].first << "),"
+			       << C_d[j].second << "("<< C_d[j].first << ")," << endl;
       
       auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
       if     (C_c[j].second == max) C[j] = C_c[j];
+      else if(C_a[j].second == max) C[j] = C_a[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
       else if(C_d[j].second == max) C[j] = C_d[j];
-      else if(C_a[j].second == max) C[j] = C_a[j];
 
       auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
       C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));

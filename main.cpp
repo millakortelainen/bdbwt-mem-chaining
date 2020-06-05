@@ -1,6 +1,9 @@
+#include <stdlib.h>
+#include <iostream>
 #include "mem.hh"
 #include "edlib.h"
 #include <stdio.h>
+#include "io.hh"
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
@@ -94,7 +97,7 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   }
   return retVector;
 }
-void chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
+pair<vector<Interval_pair> ,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
   int maxIndex = 0;
   int maxVal = 0;
   for(int i = 0; i < chains.size(); i++){
@@ -142,12 +145,19 @@ void chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair
     cout << "Chain["<<count<<"]: "<<c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
     count++;
   }
+  return (make_pair(chainIntervals, symcov));
 }
   
-int main(){
+int main(int argc, char *argv[]){
   string text;
   string text2;
-  switch(500){
+  auto fileinput = readInputFromFasta(argv[1]);
+  switch(0){
+  case 0: {
+    text = fileinput.at(0);
+    text2 = fileinput.at(1);
+    break;
+  }
   case 1: {
     text  = "GTGCGTGATCATCATTT";
     text2 = "AGTGCAAAGTGATTACC";
@@ -174,7 +184,13 @@ int main(){
     break;
   }
   }
-  minimumDepth = 3;  
+
+  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibDefaultAlignConfig());
+  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
+  edlibFreeAlignResult(result);
+
+  auto deptharg = argv[2];
+  minimumDepth = strtol(argv[2],NULL,10);  
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
   
@@ -182,47 +198,31 @@ int main(){
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
   auto filtered = filterMems(mems);
   
-  pretty_print_all(index,text);
-  pretty_print_all(index2,text2);
+  //pretty_print_all(index,text);
+  //pretty_print_all(index2,text2);
 
-  naiveOutput(index,index2,filtered,text,text2, true);
-  cout << endl;
-  auto bo = batchOutput(index,index2,filtered, true);
-  cout << endl;
-  sort(bo.begin(), bo.end(), memSort);
+  //  naiveOutput(index,index2,filtered,text,text2, true);
+  //cout << endl;
+  auto bo = batchOutput(index, index2, filtered, false);
+  cout << "batchOutput done" << endl;
+  sort(bo.begin(), bo.end(), memSort); //overall Speed increase
   
-  vector<Interval_pair> Ipairs = returnMemTuplesToIntervals(bo, true);
-  auto Ipairs2 = filterIntervals(Ipairs);
+  vector<Interval_pair> Ipairs = returnMemTuplesToIntervals(bo, false);
+  Ipairs = filterIntervals(Ipairs);
  
-  for(int i = 0; i < Ipairs2.size(); i++){
-    cout <<"Ipairs["<< i << "]: " << Ipairs2[i].toString() << "\n";
-  }
+  // for(int i = 0; i < Ipairs2.size(); i++){
+  //   cout <<"Ipairs["<< i << "]: " << Ipairs2[i].toString() << "\n";
+  // }
   
-  auto chains = chaining(Ipairs2, text2.size());
+  auto chains = chaining(Ipairs, text2.size());
   cout << "Chaining done" << endl;
 
-  chainingOutput(chains, Ipairs2);
+  auto chainints = chainingOutput(chains, Ipairs).first;
 
-
-  EdlibAlignResult result = edlibAlign("hello", 5, "world!", 6, edlibDefaultAlignConfig());
-  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
-  char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_EXTENDED);
-  printf("%s", cigar);
-  cout << cigar;
-  free(cigar);
-  edlibFreeAlignResult(result);
-
-  char* query = "ACCTCTG";
-  char* target = "ACTCTGAAA";
-  result = edlibAlign(query, 7, target, 9, edlibDefaultAlignConfig());
-  printf("%d\n", result.editDistance);
-  printf("%d\n", result.alignmentLength);
-  printf("%d\n", result.endLocations[0]);
-
-
-  edlibFreeAlignResult(result);
-
-  
+  auto absent = absentIntervals(chainints, index, index2);
+  for(int i = 0; i < absent.size(); i++){
+    cout <<"absent["<< i << "]: " << absent[i].toString() << "\n";
+  }
 }
   
 

@@ -98,7 +98,7 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
     int i,j,d;
     tie(i,j,d) = b;
     Interval_pair temp(i,i+d-1, j,j+d-1);
-    cout << "pushing " << temp.toString() << endl;
+    //    cout << "pushing " << temp.toString() << endl;
     Ipairs.push_back(temp);	 
   }
   if(sortIntervals){
@@ -122,6 +122,70 @@ vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs){
     }
   }
   return Ipairs2;
+}
+vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2){
+
+  vector<Interval_pair> absents;
+  int fwdLastEnd = idx1.size()-1;
+  int bwdLastEnd = idx1.size()-1;
+  
+  if(chains[0].forward.right != fwdLastEnd || chains[0].reverse.right != bwdLastEnd){ // Either side of first(last) chain does not match the end of the input text.
+    Interval_pair temp = Interval_pair(-1, -1, -1, -1);
+    if(chains[0].forward.right != fwdLastEnd){
+      temp.forward.left = chains[0].forward.right;
+      temp.forward.right = fwdLastEnd;
+      fwdLastEnd = chains[0].forward.left-1;
+    }
+    if(!chains[0].reverse.right != bwdLastEnd){
+      temp.reverse.left = chains[0].reverse.right;
+      temp.reverse.right = bwdLastEnd;
+      bwdLastEnd = chains[0].reverse.left-1;
+    }
+    absents.push_back(temp);
+  }
+    
+  for(int i = 1; i < chains.size(); i++){
+    Interval_pair temp = Interval_pair(-1,-1,-1,-1);
+    auto ch = chains[i];
+    auto a = ch.forward.left;
+    auto b = ch.forward.right;
+    auto c = ch.reverse.left;
+    auto d = ch.reverse.right;
+
+    if(a == 0){
+      temp.forward.left = fwdLastEnd;
+      temp.forward.right = b-1;
+    }
+    if(b != fwdLastEnd){
+      temp.forward.right = fwdLastEnd;
+      temp.forward.left = b+1;
+    }
+    if(d != bwdLastEnd){
+      temp.reverse.right = bwdLastEnd;
+      temp.reverse.left = d+1;
+    }
+    if(c == 0){
+      temp.reverse.left = bwdLastEnd;
+      temp.reverse.right = d-1;
+    }
+    fwdLastEnd = a-1;
+    bwdLastEnd = c-1;
+    absents.push_back(temp);
+  }
+  if(fwdLastEnd > 0 || bwdLastEnd > 0){ //Either side of the first(last) chain does not match the beginning of the input text.
+    Interval_pair temp = Interval_pair(-1, -1, -1, -1);
+    if(fwdLastEnd != -1){
+      temp.forward.left = 0;
+      temp.forward.right = fwdLastEnd;
+    }
+    if(bwdLastEnd != -1){
+      temp.reverse.left = 0;
+      temp.reverse.right = bwdLastEnd;
+    }
+    absents.push_back(temp);
+  }
+
+  return(absents);
 }
   
 /*END_INTERVALS*/
