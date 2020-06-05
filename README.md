@@ -5,6 +5,7 @@
 
 [Edlib](https://github.com/Martinsos/edlib) sequence alignment libary is used, and included under MIT licence. Folder "edlib" (and it's subfolders) are taken directly from said library and contain necessary source code and header file. Edlib works out of the box, and does not warrant addinational installation on this programs implementation.
 
+## Installation and Usage
 Similar to BDBWT, requires building sdsl to be built:
 ```
 cd sdsl-lite
