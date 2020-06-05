@@ -1,4 +1,6 @@
 #include "mem.hh"
+#include "edlib.h"
+#include <stdio.h>
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
@@ -200,6 +202,27 @@ int main(){
   cout << "Chaining done" << endl;
 
   chainingOutput(chains, Ipairs2);
+
+
+  EdlibAlignResult result = edlibAlign("hello", 5, "world!", 6, edlibDefaultAlignConfig());
+  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
+  char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_EXTENDED);
+  printf("%s", cigar);
+  cout << cigar;
+  free(cigar);
+  edlibFreeAlignResult(result);
+
+  char* query = "ACCTCTG";
+  char* target = "ACTCTGAAA";
+  result = edlibAlign(query, 7, target, 9, edlibDefaultAlignConfig());
+  printf("%d\n", result.editDistance);
+  printf("%d\n", result.alignmentLength);
+  printf("%d\n", result.endLocations[0]);
+
+
+  edlibFreeAlignResult(result);
+
+  
 }
   
 
