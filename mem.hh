@@ -1,9 +1,6 @@
 #include <iostream>
 #include "include/BD_BWT_index.hh"
 #include "include/Iterators.hh"
-#include "util.hh"
-#include "rsa1d.hh"
-#include "rsa2d.hh"
 #include <string>
 #include <set>
 #include <stdio.h>
@@ -12,6 +9,11 @@
 #include <stack>
 #include <bits/stdc++.h>
 #include <future>
+#include "util.hh"
+//#include "rsa1d.hh"
+#include "rsa2d.hh"
+#include <omp.h>
+
 int minimumDepth = 1;
 using namespace std;
 
@@ -85,7 +87,8 @@ std::vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
   return ret;
 }
 vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t,uint8_t>> A, vector<pair<uint8_t,uint8_t>> B){
-  vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> bl;
+  set<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> bl;
+  vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> retbl;
   vector<pair<uint8_t,uint8_t>> aa;
   vector<pair<uint8_t,uint8_t>> ab;
   auto end = BD_BWT_index<>::END;
@@ -104,19 +107,19 @@ vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t
     for(auto bi : B){
       if((bi.first != a1.first && bi.second != a1.second)){
 	allIncompatible = false;
-	bl.push_back(make_tuple(a1.first, a1.second, bi.first, bi.second));
+	bl.insert(make_tuple(a1.first, a1.second, bi.first, bi.second));
       }
       if((bi.first != a2.first && bi.second != a2.second)){
 	allIncompatible = false;
-	bl.push_back(make_tuple(a2.first, a2.second, bi.first, bi.second));
+	bl.insert(make_tuple(a2.first, a2.second, bi.first, bi.second));
       }
       if((a1.first == end && bi.first == end) || (a1.second == end && bi.second == end)){ //Handle END marker
       	allIncompatible = false;
-      	bl.push_back(make_tuple(a1.first, a1.second, bi.first, bi.second));
+      	bl.insert(make_tuple(a1.first, a1.second, bi.first, bi.second));
       }
       if((a2.first == end && bi.first == end) || (a2.second == end && bi.second == end)){ //Handle END marker
       	allIncompatible = false;
-      	bl.push_back(make_tuple(a2.first, a2.second, bi.first, bi.second));
+      	bl.insert(make_tuple(a2.first, a2.second, bi.first, bi.second));
       }
     }
     if(allIncompatible){
@@ -135,17 +138,20 @@ vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t
     for(auto bi : B){
       for(auto al : aa){
 	if(bi.first != A[i].first && bi.second != A[i].second && al.second != bi.second){
-	  bl.push_back(make_tuple(al.first, al.second, bi.first, bi.second));
+	  bl.insert(make_tuple(al.first, al.second, bi.first, bi.second));
 	}
       }
       for(auto al : ab){
 	if(bi.first != A[i].first && bi.second != A[i].second && al.first != bi.first){
-	  bl.push_back(make_tuple(al.first, al.second, bi.first, bi.second));
+	  bl.insert(make_tuple(al.first, al.second, bi.first, bi.second));
 	}
       }
     }
   }
-  return bl;
+  for(auto r : bl){
+    retbl.push_back(r);
+  }
+  return retbl;
 }
 /** Subroutine for printing out indexes containing MEM's as triples (i,j,d). Where i, and j refer to starting indexes on the two texts, and d the depth (lenght) of the string.
 param idxS BD_BWT_index<> BWT index built on the first text (S).
@@ -159,20 +165,29 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   vector<tuple<int,int,int>> ret;
   vector<pair<uint8_t,uint8_t>> A;
   vector<pair<uint8_t,uint8_t>> B;
-  
+
   if(verboseSubroutine) cout << "Subroutine interval: " <<pr.first.toString() << pr.second.toString() << "\n";
-  for(auto a : enumerateLeft(idxS,pr.first)){
-    auto sea = idxS.left_extend(pr.first,a);
-    for(auto b : enumerateRight(idxS,sea)){
-      A.push_back(make_pair(a,b));
-      if(verboseSubroutine) cout << "A: " << a << ", " << b << "\n";
+#pragma omp parallel sections
+  {
+#pragma omp section
+    {
+      for(auto a : enumerateLeft(idxS,pr.first)){
+	auto sea = idxS.left_extend(pr.first,a);
+	for(auto b : enumerateRight(idxS,sea)){
+	  A.push_back(make_pair(a,b));
+	  if(verboseSubroutine) cout << "A: " << a << ", " << b << "\n";
+	}
+      }
     }
-  }
-  for(auto c : enumerateLeft(idxT,pr.second)){
-    auto sea = idxT.left_extend(pr.second,c);
-    for(auto d : enumerateRight(idxT,sea)){
-      B.push_back(make_pair(c,d));
-      if(verboseSubroutine) cout << "B: " << c << ", " << d << "\n";
+#pragma omp section
+    {
+      for(auto c : enumerateLeft(idxT,pr.second)){
+	auto sea = idxT.left_extend(pr.second,c);
+	for(auto d : enumerateRight(idxT,sea)){
+	  B.push_back(make_pair(c,d));
+	  if(verboseSubroutine) cout << "B: " << c << ", " << d << "\n";
+	}
+      }
     }
   }
   
@@ -199,6 +214,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   
   for(int k = 0; k < cross.size(); k++){
     tie(a,b,c,d) = cross[k];
+    //cout << a << ", " << b << ", " << c << ", " << d << ", " << endl;
     Interval_pair i_1 = idxS.left_extend(pr.first,a);
     if(verboseSubroutine) cout << "Extended interval " << pr.first.toString() << " to the left with " << a << " and got: " << i_1.toString() << "\n";
     
@@ -211,15 +227,23 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     Interval_pair i_4 = idxT.right_extend(i_3,d);
     if(verboseSubroutine) cout << "Extended interval " << i_3.toString() << " to the right with " << d << " and got: " << i_4.toString() << "\n";
 
-    for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
-      for(int j = i_4.forward.left; j <= i_4.forward.right; j++){
-	ret.push_back(make_tuple(i,j,depth));
-	if(verboseSubroutine) cout << "pushed result of: (" << i << ", " << j << ", " << depth << ")" << "\n";
+    else{
+      for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
+	for(int j = i_4.forward.left; j <= i_4.forward.right; j++){
+	  ret.push_back(make_tuple(i,j,depth));
+	  if(verboseSubroutine) cout <<"[" <<omp_get_thread_num()<<"]" << "pushed result of: (" << i << ", " << j << ", " << depth << ")" << "from interval" << i_2.toString() << "\n";
+	}
       }
     }
   }
   return ret;
 }
+
+
+// vector<tuple<Interval_pair,Interval_pair,int>> mem_search(stack<tuple<Interval_pair, Interval_pair>, int> S){
+
+
+// }
 
 /** Find and return all MEM's between two BWT indexes.
     param idxS BD_BWT_index<> first BWT index
@@ -228,6 +252,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     return vector<tuple<int,int,int>> returns tuples (i,j,d) where i,j correspond to starting points of MEM's in the two indexes.
 */
 vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
+  vector<pair<pair<Interval_pair,Interval_pair>, int>> collectedSubroutineCalls;
   vector<tuple<int,int,int>> ret;
   stack<tuple<Interval_pair,Interval_pair,int>> S;
   Interval_pair ip0, ip1; int depth = -1;
@@ -248,14 +273,9 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
        (enumerateLeft(idxS,ip0)  != enumerateLeft(idxT,ip1))  ||
        (enumerateLeft(idxS,ip0).size()==1 && enumerateLeft(idxS,ip0)[0] == BD_BWT_index<>::END)){ //Handle END symbols
       if(depth >= minimumDepth){
-	if(verboseSubroutine) cout << "Enter subroutine with depth: " << depth << "\n";
-	auto rettemp = bwt_mem2_subroutine(idxS,idxT,make_pair(ip0,ip1),depth);
-	for(auto i : rettemp){
-	  ret.push_back(i);
-	}
+	collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
       }
     }
-    
     if(verboseSigma) cout << "---\n";
     auto Sigma = enumerateLeft(idxS,ip0);
     set<pair<Interval_pair,Interval_pair>> I;
@@ -367,6 +387,52 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
       if(verboseElement) cout << "Pushed x:" << x.first.toString() << x.second.toString() << "\n";
     }
   }
+  
+  if(collectedSubroutineCalls.size() == 0){
+    cout << "Could not find any MEM's with significiant enough length" << endl;
+    return ret;
+  }
+  cout << "collected subroutine (" <<collectedSubroutineCalls.size()-1<<") elements with min depth of: " << minimumDepth << endl;
+  int dmin = INT_MAX;
+  int dmax = INT_MIN;
+  int sum = 0;
+  for(auto s : collectedSubroutineCalls){
+    if(s.second < dmin){
+      dmin = s.second;
+    }
+    if(s.second > dmax){
+      dmax = s.second;
+    }
+    sum += s.second;
+  }
+  int dfilter = ((sum/collectedSubroutineCalls.size())-1);
+  //  dfilter = (dfilter > minimumDepth)? dfilter: minimumDepth;
+  cout << "minimum depth based on sampling " << dfilter << endl;
+  ret.reserve(collectedSubroutineCalls.size()*2);
+  vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
+  //  rettempThreadContainer.reserve(omp_get_max_threads());
+  
+#pragma omp parallel
+  {
+    #pragma omp for
+    for(int i = 0; i < collectedSubroutineCalls.size(); i++){
+      auto p = collectedSubroutineCalls[i];
+      if(p.second < dfilter){
+	continue;
+      }
+      if(verboseSubroutine) cout << "Enter subroutine with depth: " << p.second << "\n";
+
+      auto rettemp = bwt_mem2_subroutine(idxS,idxT,p.first,p.second);
+      for(auto rt : rettemp){
+	rettempThreadContainer[omp_get_thread_num()].push_back(rt);
+      }
+    }
+  }
+  for(auto i : rettempThreadContainer){
+    for(auto j : i){
+      ret.push_back(j);
+    }
+  }
   return ret;
 }
 	       
@@ -385,9 +451,19 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
       translate.push_back(temp);
     }
     i = LFindex[i];
-  }  
-  translate = radixSort(translate, 2);
-  pairs = radixSort(pairs,2);
+  }
+  
+  #pragma omp parallel sections
+  {
+    #pragma omp section
+    {
+      translate = radixSort(translate, 2);
+    }
+    #pragma omp section
+    {
+      pairs = radixSort(pairs,2);
+    }
+  }
 
   int x = 0;
   int y = 0;
@@ -411,6 +487,7 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
 }
 
 vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
+  cout << "beginning chaining for " << A.size() << " intervals...";
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
   rsa2d T_c = rsa2d(size);
@@ -448,10 +525,11 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   T_d.sortArray();
   T_a.sortArray();
   T_b.sortArray();
+  
   if(verboseChaining) cout << "E_1 size: " << E_1.size() << endl;
   T_a.upgrade(make_pair(0,0),0);
   sort(E_1.begin(), E_1.end(), pairSort);
-
+  cout << "chaining initializer done" << endl;
   for(int i = 0; i < E_1.size(); i++){
     auto e = E_1[i];
     if(verboseChaining) cout << E_1[i].first << endl;
@@ -466,11 +544,30 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
     
     if(I.forward.left == E_1[i].first){
       if(verboseChaining) cout <<"Interval: " << I.toString() << endl;
+      auto a = T_a.rangeMax(-1,-1);
+      auto b = T_b.rangeMax(-1,-1);
+      auto c = T_c.rangeMax(-1,-1,-1,-1);
+      auto d = T_d.rangeMax(-1,-1,-1,-1);
       
-      auto a = T_a.rangeMax(0,			I.reverse.left); //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
-      auto b = T_b.rangeMax(I.reverse.left,	I.reverse.right);
-      auto c = T_c.rangeMax(INT_MIN,		rlfl,	0, I.forward.right);
-      auto d = T_d.rangeMax(rlfl+1,		INT_MAX,0, I.reverse.right);
+#pragma omp parallel sections
+      {
+#pragma omp section
+	{
+	  a = T_a.rangeMax(0,			I.reverse.left); //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
+	}
+#pragma omp section
+	{
+	  b = T_b.rangeMax(I.reverse.left,	I.reverse.right);
+	}
+#pragma omp section
+	{
+	  c = T_c.rangeMax(INT_MIN,		rlfl,	0, I.forward.right);
+	}
+#pragma omp section
+	{
+	  d = T_d.rangeMax(rlfl+1,		INT_MAX,0, I.reverse.right);
+	}
+      }
       
       C_a[j].first = a.first.primary.second;	C_a[j].second = a.second; 
       C_b[j].first = b.first.primary.second;	C_b[j].second = I.reverse.left + b.second; 

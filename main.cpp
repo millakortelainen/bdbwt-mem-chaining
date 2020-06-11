@@ -4,6 +4,7 @@
 #include "edlib.h"
 #include <stdio.h>
 #include "io.hh"
+#include <math.h> 
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
@@ -97,7 +98,7 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   }
   return retVector;
 }
-pair<vector<Interval_pair> ,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
+pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
   int maxIndex = 0;
   int maxVal = 0;
   for(int i = 0; i < chains.size(); i++){
@@ -107,7 +108,7 @@ pair<vector<Interval_pair> ,vector<int>> chainingOutput(vector<pair<int,pair<int
       maxIndex = i;
     }
   }
-  if(false){ //printing raw chains
+  if(true){ //printing raw chains
     for(int i = 0; i < chains.size(); i++){
       cout <<"Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
     }
@@ -134,7 +135,7 @@ pair<vector<Interval_pair> ,vector<int>> chainingOutput(vector<pair<int,pair<int
 	chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
 	last = i;
 	i = chains[i].second.first;
-	if(last == 0 || last == i){ //would print out same index again => chain is done.
+	if(last == 0){ //would print out same index again => chain is done.
 	  break;
 	}
       }
@@ -151,11 +152,18 @@ pair<vector<Interval_pair> ,vector<int>> chainingOutput(vector<pair<int,pair<int
 int main(int argc, char *argv[]){
   string text;
   string text2;
-  auto fileinput = readInputFromFasta(argv[1]);
   switch(0){
   case 0: {
-    text = fileinput.at(0);
-    text2 = fileinput.at(1);
+    if(argc > 2){
+      auto fileinput = readInputFromFasta(argv[1]);
+      auto fileinput2 = readInputFromFasta(argv[2]);
+      text = fileinput.at(0);
+      text2 = fileinput2.at(0);
+    }else{
+      auto fileinput = readInputFromFasta(argv[1]);
+      text = fileinput.at(0);
+      text2 = fileinput.at(1);
+    }
     break;
   }
   case 1: {
@@ -184,31 +192,44 @@ int main(int argc, char *argv[]){
     break;
   }
   }
-
-  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibDefaultAlignConfig());
-  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
-  edlibFreeAlignResult(result);
-
-  auto deptharg = argv[2];
-  minimumDepth = strtol(argv[2],NULL,10);  
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
+  cout << "done BWT's" << endl;
+  auto depthargmin = 3; // Default minimum depth
+  auto loga = ceil(log10(index.size()-1) / log10(4)+1)+log10(text.size()-1);
+  //  double logab = (2-1/((double)index.size() / (double)result.editDistance));
+  //cout << loga  << ", " << logab << endl;
+  auto deptharg = loga;
   
+  cout << deptharg << endl;
+  if(argc > 3){
+    minimumDepth = strtol(argv[3],NULL,10);
+  }else{
+    minimumDepth = (depthargmin > deptharg)? depthargmin : deptharg; 
+  }
+  
+  cout << "finding mems between indexes...";
   auto mems  = bwt_mem2(index, index2);//Find MEMS between two BDBWT indexes.
+  cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
-  auto filtered = filterMems(mems);
-  
+  //auto filtered = filterMems(mems);
+  //cout << "filtered mems down to: " << filtered.size() << "..."; 
+  if(mems.size() == 0){
+    cout << "could not find significiantly large enough MEMS " << endl;
+    return 0;
+  }
   //pretty_print_all(index,text);
   //pretty_print_all(index2,text2);
 
   //  naiveOutput(index,index2,filtered,text,text2, true);
   //cout << endl;
-  auto bo = batchOutput(index, index2, filtered, false);
-  cout << "batchOutput done" << endl;
+  auto bo = batchOutput(index, index2, mems, false);
+  cout << "batchOutput into SA indices done" << "...";
   sort(bo.begin(), bo.end(), memSort); //overall Speed increase
   
   vector<Interval_pair> Ipairs = returnMemTuplesToIntervals(bo, false);
-  Ipairs = filterIntervals(Ipairs);
+  //  Ipairs = filterIntervals(Ipairs, (Ipairs.size() > index.size())? Ipairs.size() : index.size());
+  //  cout << "filtered intervals, and generated intervals from SA tuples, " << Ipairs.size() << endl;
  
   // for(int i = 0; i < Ipairs2.size(); i++){
   //   cout <<"Ipairs["<< i << "]: " << Ipairs2[i].toString() << "\n";
@@ -220,9 +241,67 @@ int main(int argc, char *argv[]){
   auto chainints = chainingOutput(chains, Ipairs).first;
 
   auto absent = absentIntervals(chainints, index, index2);
+  vector<pair<Interval_pair, int>> absentEdits;
+  int totalEditDistance = 0;
   for(int i = 0; i < absent.size(); i++){
-    cout <<"absent["<< i << "]: " << absent[i].toString() << "\n";
+    int ed;
+    if(absent[i].forward.left == -1){
+       ed = absent[i].reverse.right - absent[i].reverse.left;
+      //continue;
+    }
+    else if(absent[i].reverse.left == -1){
+      ed = absent[i].forward.right - absent[i].forward.left;
+      //continue;
+    }else{
+      EdlibAlignResult result = edlibAlign(text.substr(absent[i].forward.left, absent[i].forward.right).c_str(), absent[i].forward.right-absent[i].forward.left+1,
+					   text2.substr(absent[i].reverse.left, absent[i].reverse.right).c_str(), absent[i].reverse.right-absent[i].reverse.left+1, edlibDefaultAlignConfig());
+      ed = result.editDistance;
+      edlibFreeAlignResult(result);
+    }
+    int a = absent[i].forward.left;
+    int b = absent[i].forward.right;
+    int c = absent[i].reverse.left;
+    int d = absent[i].reverse.right;
+    int length = ((b-a) > (d - c))? (b-a) : (d-c);
+    
+    cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
+
+    
+    cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
+	 << setw(18-to_string(ed).size()) <<"ED/|I|: " << to_string(round((ed / ((double)length+1))*10000)/10000) << "..."
+	 << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "len: " << (length) / ed << endl;
+    totalEditDistance += ed;
+    
+    absentEdits.push_back(make_pair(absent[i], ed));
   }
+
+  cout << "total edit distance became: " << totalEditDistance << endl;
+  int ci = 0;
+  int ai = 0;
+  while(ci < chainints.size() || ai < absentEdits.size()){
+    auto cint = chainints[ci];
+    auto aint = absentEdits[ai].first;
+
+    if(cint.forward.right > aint.forward.right && ci < chainints.size()){
+      cout << "C:" << cint.toString() << endl;
+      ci++;
+    }
+    else if(cint.forward.right < aint.forward.right && ai < absentEdits.size()){
+      cout << "A:" << aint.toString() << endl;
+      ai++;
+    }
+    else{
+      if(ci < chainints.size()){
+	cout << "C:" << cint.toString() << endl;
+	break;
+      }
+      if(ai < absentEdits.size()){
+	  cout << "A:" << aint.toString() << endl;
+	  break;
+      }
+    }
+  }
+  
 }
   
 

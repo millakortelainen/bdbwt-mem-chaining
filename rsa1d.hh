@@ -88,6 +88,14 @@ public:
      @return pair<struct cell1d, int>
   */
   std::pair<struct cell1d,int> rangeMax(int min1, int max1){
+
+    int maxVal = INT_MIN;
+    struct cell1d maxCell;
+    maxCell.primary = make_pair(-1,-1);
+    if(min1 == -1 && max1 == -1){
+      return make_pair(maxCell, maxVal);
+    }
+    
     int count = 0;
     int m,m2;
     m = hash_back(min1, false);
@@ -97,10 +105,7 @@ public:
     if(verbose) cout << "hashed bounds: "<< m << ", " << m2 << "...";
     if(verbose) cout << "rangemax: array.size()=" << array.size() << endl;
     
-    int maxVal = INT_MIN;
-    struct cell1d maxCell;
-    maxCell.primary = make_pair(-1,-1);
-    
+    //    #pragma omp parallel
     for(int i = m; i <= m2; i++){
       count++;
       if(array[i].primary.first > max1){

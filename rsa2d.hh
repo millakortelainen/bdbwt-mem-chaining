@@ -87,6 +87,12 @@ struct cell2d{
      @return pair<struct cell2d, int>
   */
   std::pair<struct cell2d, int> rangeMax(int min1, int max1, int min2, int max2){
+    int maxVal = INT_MIN;
+    struct cell2d maxCell;
+    maxCell.primary = make_pair(-1,-1);
+    if(min1 == -1 && max1 == -1 && min2 == -1 && max2 == -1){
+      return make_pair(maxCell, maxVal);
+    }
     int m, m2;
     int count = 0;
     if(min1 == INT_MIN){
@@ -95,25 +101,21 @@ struct cell2d{
       m = hash.at(min1-1); //since input is r.left - l.left +1
     }
     if(max1 == INT_MAX){
-      max1 = array.size()-1;
+      m2 = array.size()-1;
     }else{
       m2 = hash.at(max1);
     }
-    
-    int maxVal = INT_MIN;
-    struct cell2d maxCell;
-    maxCell.primary = make_pair(-1,-1);
     
     if(verbose) cout << "rangemax2D bounds: "<< min1 << ", " << max1 << "::" << min2 << ", " << max2 << "...";
     if(verbose) cout << "hashed   bounds: "<< m << ", " << m2 << "...";
 
     for(int i = m; i <= m2; i++){
       if(array[i].primary.first >= min1 && array[i].primary.first <= max1){
-	for(int k = 0; k < array[i].secondary.size(); k++){
+	for(int k = 0; k < array.at(i).secondary.size(); k++){
 	  count++;
-	  int sec = array[i].secondary.at(k).first;
+	  int sec = array.at(i).secondary.at(k).first;
 	  if(array[i].secondary.size() > 1){
-	    cout << "secondary: "<< sec;
+	    //    cout << "secondary: "<< sec << " on index " << i << endl;
 	  }
 	  if(sec >= min2 && sec <= max2){
 	    int tempMax = array[i].secondary[k].second;

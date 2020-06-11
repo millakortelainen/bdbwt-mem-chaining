@@ -3,6 +3,7 @@
 #include "include/BD_BWT_index.hh"
 #include <stdio.h>
 #include <cmath>
+#include "rsa1d.hh"
 using namespace std;
 
 set<char> alphabet;
@@ -106,19 +107,50 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   }
   return Ipairs;
 }
-vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs){
+vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs, int size){
+  //  const int s = size;
+  vector<int> bsl(size,-1);
+  vector<int> bsr(size,-1);
   vector<Interval_pair> Ipairs2;
+  sort(Ipairs.begin(), Ipairs.end(), intervalSortDiff);
   Ipairs2.push_back(Ipairs[0]);
+
   for(int i = 1; i < Ipairs.size(); i++){
+    int count = 0;
     auto ip = Ipairs.at(i);
-    auto io = Ipairs.at(i-1);
-    if(ip.forward.left == io.forward.left && ip.forward.right == io.forward.right){
-      if(abs(ip.reverse.left-ip.forward.left) < abs(io.reverse.left-ip.forward.left)){
+    auto io = Ipairs2.at(Ipairs2.size()-1);
+    for(int j = ip.forward.left; j <= ip.forward.right; j++){
+      if(bsl.at(j) > -1){
+	count++;
+      }
+    }
+    for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
+      if(bsr.at(j) > -1){
+	count++;
+      }
+    }
+    if(count > ((abs(ip.reverse.left - ip.forward.left)))){
+      //continue;
+    }
+    if(ip.forward.left >= io.forward.left && ip.forward.right <= io.forward.right){ //nested case
+      if(abs(ip.reverse.left-ip.forward.left) < abs(io.reverse.left-io.forward.left)){
 	Ipairs2.pop_back();	
       }
       Ipairs2.push_back(ip);
+      for(int j = ip.forward.left; j <= ip.forward.right; j++){
+	bsl.at(j) = i;
+      }
+      for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
+	bsr.at(j) = i;
+      }
     }else{
       Ipairs2.push_back(ip);
+      for(int j = ip.forward.left; j <= ip.forward.right; j++){
+	bsl.at(j) = i;
+      }
+      for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
+	bsr.at(j) = i;
+      }
     }
   }
   return Ipairs2;
@@ -132,12 +164,12 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
   if(chains[0].forward.right != fwdLastEnd || chains[0].reverse.right != bwdLastEnd){ // Either side of first(last) chain does not match the end of the input text.
     Interval_pair temp = Interval_pair(-1, -1, -1, -1);
     if(chains[0].forward.right != fwdLastEnd){
-      temp.forward.left = chains[0].forward.right;
+      temp.forward.left = chains[0].forward.right+1;
       temp.forward.right = fwdLastEnd;
       fwdLastEnd = chains[0].forward.left-1;
     }
     if(!chains[0].reverse.right != bwdLastEnd){
-      temp.reverse.left = chains[0].reverse.right;
+      temp.reverse.left = chains[0].reverse.right+1;
       temp.reverse.right = bwdLastEnd;
       bwdLastEnd = chains[0].reverse.left-1;
     }
@@ -167,6 +199,16 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
     if(c == 0){
       temp.reverse.left = bwdLastEnd;
       temp.reverse.right = d-1;
+    }
+    if(temp.forward.right < temp.forward.left){
+      int t = temp.forward.right;
+      temp.forward.right = temp.forward.left;
+      temp.forward.left = t;
+    }
+    if(temp.reverse.right < temp.reverse.left){
+      int t = temp.reverse.right;
+      temp.reverse.right = temp.reverse.left;
+      temp.reverse.left = t;
     }
     fwdLastEnd = a-1;
     bwdLastEnd = c-1;

@@ -8,7 +8,7 @@ vector<string> readInputFromFasta(string filename){
   ifstream fa(filename);
   int index = -1;
   while(getline(fa,line)){
-    if(line.at(0) == ';' || line.at(0) == '\n'){
+    if(line == "" || line.at(0) == ';' || line.at(0) == '\n'){
       cout << line << endl;
       continue;
     }if(line.at(0) == '>'){
