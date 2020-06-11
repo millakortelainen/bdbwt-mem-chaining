@@ -239,12 +239,6 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   return ret;
 }
 
-
-// vector<tuple<Interval_pair,Interval_pair,int>> mem_search(stack<tuple<Interval_pair, Interval_pair>, int> S){
-
-
-// }
-
 /** Find and return all MEM's between two BWT indexes.
     param idxS BD_BWT_index<> first BWT index
     param idxT BD_BWT_index<> second BWT index.
@@ -252,17 +246,19 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     return vector<tuple<int,int,int>> returns tuples (i,j,d) where i,j correspond to starting points of MEM's in the two indexes.
 */
 vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
-  vector<pair<pair<Interval_pair,Interval_pair>, int>> collectedSubroutineCalls;
+  vector<pair<pair<Interval_pair,Interval_pair>,int>> collectedSubroutineCalls;
   vector<tuple<int,int,int>> ret;
-  stack<tuple<Interval_pair,Interval_pair,int>> S;
+  vector<tuple<Interval_pair,Interval_pair,int>> S;
   Interval_pair ip0, ip1; int depth = -1;
   int itrl1Size = idxS.size()-1;
   int itrl2Size = idxT.size()-1;
   
-  S.push(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size), Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  S.push_back(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size), Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  
   while(!S.empty()){
     if(verboseElement) cout << "\n\n---Popping new element:" << "";
-    tie(ip0,ip1,depth) = S.top(); S.pop();
+    tie(ip0,ip1,depth) = S[S.size()-1];
+    S.pop_back();
     if(verboseElement) cout << ip0.toString() << ip1.toString() << ", current depth is: " << depth << " \nStack has: " << S.size() << " elements left."  << "\n\n";
     
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
@@ -307,7 +303,9 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
       x = *I.begin(); //Initialize first item for comparison
     }
     else{
-      continue; // I is empty, nothing to do.
+      //  return make_pair(nullRet,collectedSubroutineCalls);
+      //    return ret; // I is empty, nothing to do.
+      continue;
     }
     int xForwardDelta 	= x.first.forward.right - x.first.forward.left;
     int xForwardDelta2 	= x.second.forward.right - x.second.forward.left;
@@ -361,7 +359,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
 	     (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
 	     (enumerateRight(idxS, y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
 	    
-	    S.push(make_tuple(y.first,y.second, depth+1));
+	    S.push_back(make_tuple(y.first,y.second, depth+1));
 	    if(verboseElement) cout << "Pushed y:" << y.first.toString() << y.second.toString() << "\n";
 	  }
 	}
@@ -383,11 +381,11 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT){
        (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second)) ||
        (enumerateRight(idxS, x.first).size()==1 && enumerateRight(idxS,x.first)[0] == BD_BWT_index<>::END)){  // Handle END symbols
 
-      S.push(make_tuple(x.first,x.second, depth+1));
+      S.push_back(make_tuple(x.first,x.second, depth+1));
       if(verboseElement) cout << "Pushed x:" << x.first.toString() << x.second.toString() << "\n";
     }
   }
-  
+
   if(collectedSubroutineCalls.size() == 0){
     cout << "Could not find any MEM's with significiant enough length" << endl;
     return ret;
