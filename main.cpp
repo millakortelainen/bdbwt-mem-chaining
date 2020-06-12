@@ -108,7 +108,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
       maxIndex = i;
     }
   }
-  if(true){ //printing raw chains
+  if(false){ //printing raw chains
     for(int i = 0; i < chains.size(); i++){
       cout <<"Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
     }
@@ -208,8 +208,34 @@ int main(int argc, char *argv[]){
     minimumDepth = (depthargmin > deptharg)? depthargmin : deptharg; 
   }
   
-  cout << "finding mems between indexes...";
-  auto mems  = bwt_mem2(index, index2);//Find MEMS between two BDBWT indexes.
+  vector<tuple<int,int,int>> mems;
+  bool threadedBWT = true;
+  if(threadedBWT){
+    set<tuple<int,int,int>> memFilter;
+    cout << "finding mems between indexes...";
+    auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
+    if(enumLeft.at(0) == BD_BWT_index<>::END){
+      enumLeft.erase(enumLeft.begin());
+    }
+    vector<vector<tuple<int,int,int>>> memThreads(omp_get_max_threads());
+    for(auto i : enumLeft){
+      cout << i << endl;
+    }
+#pragma omp parallel for
+    for(int i = 0; i < enumLeft.size(); i++){
+      auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+
+      memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
+    }
+      cout << "done finding mems in threads, collapsing";
+      for(auto a : memThreads){
+	mems.insert(mems.end(), a.begin(), a.end());
+      }
+  }else{
+    mems = bwt_mem2(index,index2);
+  }
+  
+
   cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
   //auto filtered = filterMems(mems);

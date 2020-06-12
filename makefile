@@ -4,5 +4,7 @@ SDSL = -I include -I $(BDBWT)sdsl-lite/include -I ./$(BDBWT)sdsl-lite/build/exte
 EDLIB = $(BDBWT)edlib/src/edlib.cpp -o
 all:
 	g++  -fopenmp $(EDLIB) $(BDBWT)io.hh -g $(BDBWT)util.hh $(BDBWT)sortUtil.hh $(BDBWT)rsa1d.hh $(BDBWT)rsa2d.hh -g $(BDBWT)mem.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14
+prof:
+	g++  -fopenmp $(EDLIB) $(BDBWT)io.hh -g $(BDBWT)util.hh $(BDBWT)sortUtil.hh $(BDBWT)rsa1d.hh $(BDBWT)rsa2d.hh -g $(BDBWT)mem.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14 -pg
 
 
