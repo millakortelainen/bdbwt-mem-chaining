@@ -192,6 +192,11 @@ int main(int argc, char *argv[]){
     break;
   }
   }
+    
+  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibDefaultAlignConfig());
+  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
+  edlibFreeAlignResult(result);
+  
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
   cout << "done BWT's" << endl;
@@ -238,7 +243,7 @@ int main(int argc, char *argv[]){
 
   cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
-  //auto filtered = filterMems(mems);
+  auto filtered = filterMems(mems);
   //cout << "filtered mems down to: " << filtered.size() << "..."; 
   if(mems.size() == 0){
     cout << "could not find significiantly large enough MEMS " << endl;
@@ -249,7 +254,7 @@ int main(int argc, char *argv[]){
 
   //  naiveOutput(index,index2,filtered,text,text2, true);
   //cout << endl;
-  auto bo = batchOutput(index, index2, mems, false);
+  auto bo = batchOutput(index, index2, filtered, false);
   cout << "batchOutput into SA indices done" << "...";
   sort(bo.begin(), bo.end(), memSort); //overall Speed increase
   
@@ -272,15 +277,18 @@ int main(int argc, char *argv[]){
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1){
-       ed = absent[i].reverse.right - absent[i].reverse.left;
-      //continue;
+           ed = absent[i].reverse.right - absent[i].reverse.left;
+	   ed = 0;
+       //continue;
     }
     else if(absent[i].reverse.left == -1){
       ed = absent[i].forward.right - absent[i].forward.left;
+      ed = 0;
       //continue;
     }else{
-      EdlibAlignResult result = edlibAlign(text.substr(absent[i].forward.left, absent[i].forward.right).c_str(), absent[i].forward.right-absent[i].forward.left+1,
-					   text2.substr(absent[i].reverse.left, absent[i].reverse.right).c_str(), absent[i].reverse.right-absent[i].reverse.left+1, edlibDefaultAlignConfig());
+      EdlibAlignResult result = edlibAlign(text.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
+					   text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
+					   edlibDefaultAlignConfig());
       ed = result.editDistance;
       edlibFreeAlignResult(result);
     }
@@ -294,40 +302,78 @@ int main(int argc, char *argv[]){
 
     
     cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
-	 << setw(18-to_string(ed).size()) <<"ED/|I|: " << to_string(round((ed / ((double)length+1))*10000)/10000) << "..."
-	 << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "len: " << (length) / ed << endl;
-    totalEditDistance += ed;
+	 << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
+	 << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
     
+    totalEditDistance += ed;
     absentEdits.push_back(make_pair(absent[i], ed));
   }
 
   cout << "total edit distance became: " << totalEditDistance << endl;
+  cout << "taking lenght difference into account: " << totalEditDistance - (abs(index2.size()-1 - index.size()-1)) << endl;
   int ci = 0;
   int ai = 0;
-  while(ci < chainints.size() || ai < absentEdits.size()){
+  bool absentFirst = true;
+  vector<pair<Interval_pair, int>> combinedED;
+  
+  if (chainints[0].forward.left > absentEdits[0].first.forward.left){
+    absentFirst = false;
+  }
+  while(ci < chainints.size() || ai < absentEdits.size()){ // print all in order
     auto cint = chainints[ci];
     auto aint = absentEdits[ai].first;
 
-    if(cint.forward.right > aint.forward.right && ci < chainints.size()){
-      cout << "C:" << cint.toString() << endl;
-      ci++;
-    }
-    else if(cint.forward.right < aint.forward.right && ai < absentEdits.size()){
-      cout << "A:" << aint.toString() << endl;
-      ai++;
-    }
-    else{
-      if(ci < chainints.size()){
-	cout << "C:" << cint.toString() << endl;
-	break;
+    if(absentFirst){
+      if(absentEdits.size()-1 >= ai){
+	cout << "A: " << absentEdits[ai].first.toString() << endl;
+	combinedED.push_back(absentEdits[ai]);
       }
-      if(ai < absentEdits.size()){
-	  cout << "A:" << aint.toString() << endl;
-	  break;
+      if(chainints.size()-1 >= ci){
+	cout << "C: " << chainints[ci].toString() << endl;
+	combinedED.push_back(make_pair(chainints[ci], 0));
+      }
+    }else{
+      if(chainints.size()-1 >= ci){
+	cout << "C: " << chainints[ci].toString() << endl;
+	combinedED.push_back(make_pair(chainints[ci], 0));
+      }
+      if(absentEdits.size()-1 >= ai){
+	cout << "A: " << absentEdits[ai].first.toString() << endl;
+	combinedED.push_back(absentEdits[ai]);
       }
     }
+    ci++;
+    ai++;
   }
-  
+  int averageED = totalEditDistance / absentEdits.size()-1;
+  int ra = combinedED.at(0).first.forward.right;
+  int rb = combinedED.at(0).first.forward.right;
+  int tempED = 0;
+  for(auto e : combinedED){ // print all in order
+    auto a = e.first.forward.left;
+    auto b = e.first.forward.right;
+    auto c = e.first.reverse.left;
+    auto d = e.first.reverse.right;
+    auto ed = e.second;
+    if(ed > averageED){
+      Interval_pair ip = Interval_pair(b+1,ra+1,d-1,rb-1);
+      ra = a;
+      rb = c;
+      
+      int length = (ip.forward.size() > ip.reverse.size())? ip.forward.size() : ip.reverse.size();
+      cout << ip.toString() << "ed: " << tempED << " total lenght: " << length << endl;
+      tempED = 0;
+    }else{
+      tempED += ed;
+    }
+
+    
+    
+    
+    
+
+  }
+
 }
   
 
