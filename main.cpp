@@ -4,7 +4,8 @@
 #include "edlib.h"
 #include <stdio.h>
 #include "io.hh"
-#include <math.h> 
+#include <math.h>
+#include <algorithm>
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
@@ -148,11 +149,77 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   }
   return (make_pair(chainIntervals, symcov));
 }
+
+
+vector<pair<string,int>> minimizers(string t1, int k, int w){
+  vector<set<pair<string,int>>> kmers((t1.size()/w));
+  vector<pair<string,int>> ret;
+  for(int i = 0; i <= t1.size()-k; i++){
+    kmers.at((int)(i/w)).insert(make_pair(t1.substr(i,k),i));
+  }
+  for(auto km : kmers){
+    if(!km.empty()){
+      auto x = *km.begin();
+      //cout << x.first << endl;
+      ret.push_back(x);
+    }
+  }
+  cout << "found " << ret.size() << " minimizers" << endl;
+  sort(ret.begin(), ret.end(), minimizerLexSort);
+  return ret;
+}
+vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+  unordered_set<string> m1Kmer(m1.size()-1);
+  unordered_set<string> m2Kmer(m2.size()-1);
+  set<string> anchorMers;
+  vector<tuple<int,int,int>> ret;
+  for(auto first : m1){
+    m1Kmer.insert(first.first);
+  }
+  for(auto first : m2){
+    m2Kmer.insert(first.first);
+  }
+  for(auto m : m1Kmer){
+    if(m2Kmer.find(m) != m2Kmer.end()){
+      anchorMers.insert(m);
+    }
+  }
+  // for(auto j : anchorMers){
+  //   cout <<"anchor: "<< j << endl;
+  // }
+  int maxSize = (m1.size()-1 > m2.size()-1)? m1.size()-1 : m2.size()-1;
+  for(int i = 0; i < maxSize; i++){
+    if((m1.size()-1 > maxSize) && (anchorMers.find(m1.at(i).first) == anchorMers.end())){
+      m1.erase(m1.begin()+i);
+    }
+    if((m2.size()-1 > maxSize) && (anchorMers.find(m2.at(i).first) == anchorMers.end())){
+      m2.erase(m2.begin()+i);
+    }
+  }
+  for(auto x : m1){
+    auto y = *m2.begin();
+    int i = 0;
+    while(x.first[0] == y.first[0]){
+      if(x.first == y.first){
+	auto tup = make_tuple(x.second, y.second, x.first.length());
+	//	cout << "mini tuple (" << x.second << "," <<  y.second << "," << x.first.length() << ")" << endl;
+	ret.push_back(tup);
+      }
+      i++;
+      y = *(m2.begin()+i);
+    }
+     
+
+      //}
+  }
+  sort(ret.begin(),ret.begin(),memSort);
+  return ret;
+}
   
 int main(int argc, char *argv[]){
   string text;
   string text2;
-  switch(0){
+  switch(1){
   case 0: {
     if(argc > 2){
       auto fileinput = readInputFromFasta(argv[1]);
@@ -167,8 +234,10 @@ int main(int argc, char *argv[]){
     break;
   }
   case 1: {
-    text  = "GTGCGTGATCATCATTT";
-    text2 = "AGTGCAAAGTGATTACC";
+    text = "CAATTTAAGGCCCGGG";
+    text2 = "CAAAGTAAGGCCCTCC";
+    //text  = "GTGCGTGATCATCATTT";
+    //text2 = "AGTGCAAAGTGATTACC";
     break;
   }
   case 2:{
@@ -192,7 +261,14 @@ int main(int argc, char *argv[]){
     break;
   }
   }
-    
+  auto mini1 = minimizers(text,5,5);
+  cout << endl;
+  auto mini2 = minimizers(text2,5,5);
+  cout << endl;
+  auto mimimems = minimizerTuples(mini1,mini2);
+  cout << endl;
+  
+  
   EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibDefaultAlignConfig());
   printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
   edlibFreeAlignResult(result);
@@ -243,7 +319,7 @@ int main(int argc, char *argv[]){
 
   cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
-  auto filtered = filterMems(mems);
+  auto filtered = filterMems(mimimems);
   //cout << "filtered mems down to: " << filtered.size() << "..."; 
   if(mems.size() == 0){
     cout << "could not find significiantly large enough MEMS " << endl;
@@ -262,9 +338,9 @@ int main(int argc, char *argv[]){
   //  Ipairs = filterIntervals(Ipairs, (Ipairs.size() > index.size())? Ipairs.size() : index.size());
   //  cout << "filtered intervals, and generated intervals from SA tuples, " << Ipairs.size() << endl;
  
-  // for(int i = 0; i < Ipairs2.size(); i++){
-  //   cout <<"Ipairs["<< i << "]: " << Ipairs2[i].toString() << "\n";
-  // }
+  for(int i = 0; i < Ipairs.size(); i++){
+    cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
+  }
   
   auto chains = chaining(Ipairs, text2.size());
   cout << "Chaining done" << endl;

@@ -1,5 +1,5 @@
 # bdbwt-mem-chaining
-
+This project contains the implementation side of an on-going Master's Thesis project. All code, excluding external libraries noted below, is written for, and as part of the thesis.
 ## Required libraries:
 [BDBWT](https://github.com/algbio/bdbwt) and it's dependencies which are included in /include (BDBWT) and /sdsl-lite (SDSL) folders.
 

@@ -53,6 +53,9 @@ bool pairSortSecond(const pair<int,int> &first, const pair<int,int> &second){
 bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int,int>> &second){
   return (first.first < second.first);
 }
+bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second){
+  return (first.first < second.first);
+}
 bool intervalSort(const Interval_pair &a, const Interval_pair &b){
   int aac = (a.reverse.left - a.forward.left);
   int bac = (b.reverse.left - a.forward.left);
