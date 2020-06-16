@@ -37,3 +37,4 @@ main
 \.#*
 *\.out
 *\.output
+core
