@@ -1,3 +1,5 @@
+#ifndef UTIL_HH
+#define UTIL_HH
 #include <iostream>
 #include <string>
 #include "include/BD_BWT_index.hh"
@@ -54,7 +56,7 @@ bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int
   return (first.first < second.first);
 }
 bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second){
-  return (first.first < second.first);
+  return (first.second < second.second);
 }
 bool intervalSort(const Interval_pair &a, const Interval_pair &b){
   int aac = (a.reverse.left - a.forward.left);
@@ -102,7 +104,6 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
     int i,j,d;
     tie(i,j,d) = b;
     Interval_pair temp(i,i+d-1, j,j+d-1);
-    //    cout << "pushing " << temp.toString() << endl;
     Ipairs.push_back(temp);	 
   }
   if(sortIntervals){
@@ -110,6 +111,7 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   }
   return Ipairs;
 }
+
 vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs, int size){
   //  const int s = size;
   vector<int> bsl(size,-1);
@@ -351,3 +353,4 @@ void pretty_print_all(BD_BWT_index<>& index, string text1){
 }
 
 
+#endif

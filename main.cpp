@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <iostream>
 #include "mem.hh"
+#include "minimizer.hh"
 #include "edlib.h"
 #include <stdio.h>
 #include "io.hh"
 #include <math.h>
 #include <algorithm>
+//#include "util.hh"
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
   auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
@@ -26,8 +28,8 @@ void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,i
     if(begin_j >= index2.size()-1){
       begin_j = index2.size()-retSA2[j]-1; //Analogously to above. 
     }
-    int end_i  = begin_i+depth-1;
-    int end_j  = begin_j+depth-1;
+    int end_i = begin_i+depth-1;
+    int end_j = begin_j+depth-1;
     
     cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
     
@@ -128,7 +130,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
     //cout << "chains[i].second= " << chains.at(i).second.first <<":"<<chains.at(i).second.second << "...\t";
     if(chains.at(i).second.second >= 0){
       auto I = Ipairs.at(chains.at(i).second.second);
-      if(chainIntervals.size() > 0 &&
+      if(chainIntervals.size() > 0 && chains.size() > 1 &&
 	 chainIntervals.at(chainIntervals.size()-1).forward.left >= I.forward.left &&
 	 chainIntervals.at(chainIntervals.size()-1).reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
 
@@ -144,97 +146,78 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   }
   int count = 0;
   for(auto c : chainIntervals){
-    cout << "Chain["<<count<<"]: "<<c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
+    cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
     count++;
   }
   return (make_pair(chainIntervals, symcov));
 }
-
-
-vector<pair<string,int>> minimizers(string t1, int k, int w){
-  vector<set<pair<string,int>>> kmers((t1.size()/w));
-  vector<pair<string,int>> ret;
-  for(int i = 0; i <= t1.size()-k; i++){
-    kmers.at((int)(i/w)).insert(make_pair(t1.substr(i,k),i));
-  }
-  for(auto km : kmers){
-    if(!km.empty()){
-      auto x = *km.begin();
-      //cout << x.first << endl;
-      ret.push_back(x);
+vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2 ){
+  vector<tuple<int,int,int>> mems;
+  bool threadedBWT = true;
+  if(threadedBWT){
+    set<tuple<int,int,int>> memFilter;
+    cout << "finding mems between indexes...";
+    auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
+    if(enumLeft.at(0) == BD_BWT_index<>::END){
+      enumLeft.erase(enumLeft.begin());
     }
-  }
-  cout << "found " << ret.size() << " minimizers" << endl;
-  sort(ret.begin(), ret.end(), minimizerLexSort);
-  return ret;
-}
-vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
-  unordered_set<string> m1Kmer(m1.size()-1);
-  unordered_set<string> m2Kmer(m2.size()-1);
-  set<string> anchorMers;
-  vector<tuple<int,int,int>> ret;
-  for(auto first : m1){
-    m1Kmer.insert(first.first);
-  }
-  for(auto first : m2){
-    m2Kmer.insert(first.first);
-  }
-  for(auto m : m1Kmer){
-    if(m2Kmer.find(m) != m2Kmer.end()){
-      anchorMers.insert(m);
+    vector<vector<tuple<int,int,int>>> memThreads(omp_get_max_threads());
+    for(auto i : enumLeft){
+      cout << i << endl;
     }
-  }
-  // for(auto j : anchorMers){
-  //   cout <<"anchor: "<< j << endl;
-  // }
-  int maxSize = (m1.size()-1 > m2.size()-1)? m1.size()-1 : m2.size()-1;
-  for(int i = 0; i < maxSize; i++){
-    if((m1.size()-1 > maxSize) && (anchorMers.find(m1.at(i).first) == anchorMers.end())){
-      m1.erase(m1.begin()+i);
+#pragma omp parallel for
+    for(int i = 0; i < enumLeft.size(); i++){
+      auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+      memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
     }
-    if((m2.size()-1 > maxSize) && (anchorMers.find(m2.at(i).first) == anchorMers.end())){
-      m2.erase(m2.begin()+i);
-    }
-  }
-  for(auto x : m1){
-    auto y = *m2.begin();
-    int i = 0;
-    while(x.first[0] == y.first[0]){
-      if(x.first == y.first){
-	auto tup = make_tuple(x.second, y.second, x.first.length());
-	//	cout << "mini tuple (" << x.second << "," <<  y.second << "," << x.first.length() << ")" << endl;
-	ret.push_back(tup);
+      cout << "done finding mems in threads, collapsing";
+      for(auto a : memThreads){
+	for(auto b : a){
+	  memFilter.insert(b);
+	}
       }
-      i++;
-      y = *(m2.begin()+i);
-    }
-     
-
-      //}
+      mems.insert(mems.end(), memFilter.begin(), memFilter.end());
   }
-  sort(ret.begin(),ret.begin(),memSort);
-  return ret;
-}
+  else{
+    mems = bwt_mem2(index,index2);
+  }
+
+  cout << "found mems," << mems.size() << "...";
+  sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
+  //auto filtered = filterMems(mems);
+  //cout << "filtered mems down to: " << filtered.size() << "..."; 
+  if(mems.size() == 0){
+    cout << "could not find significiantly large enough MEMS " << endl;
+    return mems;
+  }
   
+  //  naiveOutput(index,index2,filtered,text,text2, true);
+  //cout << endl;
+  auto bo = batchOutput(index, index2, mems, false);
+  cout << "batchOutput into SA indices done" << "...";
+  sort(bo.begin(), bo.end(), memSort); //overall Speed increase
+  return bo;
+}
+
 int main(int argc, char *argv[]){
   string text;
   string text2;
-  switch(1){
+  switch(0){
   case 0: {
-    if(argc > 2){
-      auto fileinput = readInputFromFasta(argv[1]);
-      auto fileinput2 = readInputFromFasta(argv[2]);
+    if(argc > 4){
+      auto fileinput = readInputFromFasta(argv[3]);
+      auto fileinput2 = readInputFromFasta(argv[4]);
       text = fileinput.at(0);
       text2 = fileinput2.at(0);
     }else{
-      auto fileinput = readInputFromFasta(argv[1]);
+      auto fileinput = readInputFromFasta(argv[3]);
       text = fileinput.at(0);
       text2 = fileinput.at(1);
     }
     break;
   }
   case 1: {
-    text = "CAATTTAAGGCCCGGG";
+    text =  "CAATTTAAGGCCCGGG";
     text2 = "CAAAGTAAGGCCCTCC";
     //text  = "GTGCGTGATCATCATTT";
     //text2 = "AGTGCAAAGTGATTACC";
@@ -261,110 +244,97 @@ int main(int argc, char *argv[]){
     break;
   }
   }
-  auto mini1 = minimizers(text,5,5);
-  cout << endl;
-  auto mini2 = minimizers(text2,5,5);
-  cout << endl;
-  auto mimimems = minimizerTuples(mini1,mini2);
-  cout << endl;
-  
-  
-  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibDefaultAlignConfig());
-  printf("edit_distance('hello', 'world!') = %d\n", result.editDistance);
-  edlibFreeAlignResult(result);
-  
+  auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0);
+  //  auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0);
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
-  cout << "done BWT's" << endl;
+  vector<Interval_pair> Ipairs;
+  
+  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibConf);
+  printf("edit_distance = %d\n", result.editDistance);
+
+  char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
+  printf("%s", cigar);
+  free(cigar);
+  edlibFreeAlignResult(result);
+  
   auto depthargmin = 3; // Default minimum depth
   auto loga = ceil(log10(index.size()-1) / log10(4)+1)+log10(text.size()-1);
-  //  double logab = (2-1/((double)index.size() / (double)result.editDistance));
-  //cout << loga  << ", " << logab << endl;
   auto deptharg = loga;
   
   cout << deptharg << endl;
-  if(argc > 3){
-    minimumDepth = strtol(argv[3],NULL,10);
+  if(argc > 1 && argv[1] != 0){
+    minimumDepth = strtol(argv[1],NULL,10);
   }else{
     minimumDepth = (depthargmin > deptharg)? depthargmin : deptharg; 
   }
+  int minimizerWindowSize = minimumDepth*0.50;
   
-  vector<tuple<int,int,int>> mems;
-  bool threadedBWT = true;
-  if(threadedBWT){
-    set<tuple<int,int,int>> memFilter;
-    cout << "finding mems between indexes...";
-    auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
-    if(enumLeft.at(0) == BD_BWT_index<>::END){
-      enumLeft.erase(enumLeft.begin());
-    }
-    vector<vector<tuple<int,int,int>>> memThreads(omp_get_max_threads());
-    for(auto i : enumLeft){
-      cout << i << endl;
-    }
-#pragma omp parallel for
-    for(int i = 0; i < enumLeft.size(); i++){
-      auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+  int computationMode = strtol(argv[2],NULL,10);
+  switch(computationMode){
+  case 0: { //BWT Only
+    //BD_BWT_index<> index((uint8_t*)text.c_str());
+    //BD_BWT_index<> index2((uint8_t*)text2.c_str());
+    cout << "done BWT's" << endl;
+    auto bo = bwt_to_int_tuples(index, index2);
+    Ipairs = returnMemTuplesToIntervals(bo, false);
+    break;
+  }
+  case 1: { //Minimizer Only
+    auto mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
+    cout << endl;
+    auto mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
+    cout << endl;
+    auto mimimems = minimizerTuples(mini1,mini2);
+    cout << endl;
+    auto minimems = memifyMinimizers(mimimems, text, text2);
+    Ipairs = returnMemTuplesToIntervals(minimems, false);
+    break;
+  }
+  case 2: { //Hybrid
+    auto mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
+    cout << endl;
+    auto mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
+    cout << endl;
+    auto mimimems = minimizerTuples(mini1,mini2);
+    cout << endl;
+    auto minimems = memifyMinimizers(mimimems, text, text2);
+    //Ipairs = returnMemTuplesToIntervals(minimems, false);
 
-      memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
-    }
-      cout << "done finding mems in threads, collapsing";
-      for(auto a : memThreads){
-	mems.insert(mems.end(), a.begin(), a.end());
-      }
-  }else{
-    mems = bwt_mem2(index,index2);
+    cout << "done BWT's" << endl;
+    auto bo = bwt_to_int_tuples(index, index2);
+    Ipairs = returnMemTuplesToIntervals(bo, false);
+    break;
+    break;
+  }
   }
   
-
-  cout << "found mems," << mems.size() << "...";
-  sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
-  auto filtered = filterMems(mimimems);
-  //cout << "filtered mems down to: " << filtered.size() << "..."; 
-  if(mems.size() == 0){
-    cout << "could not find significiantly large enough MEMS " << endl;
-    return 0;
-  }
-  //pretty_print_all(index,text);
-  //pretty_print_all(index2,text2);
-
-  //  naiveOutput(index,index2,filtered,text,text2, true);
-  //cout << endl;
-  auto bo = batchOutput(index, index2, filtered, false);
-  cout << "batchOutput into SA indices done" << "...";
-  sort(bo.begin(), bo.end(), memSort); //overall Speed increase
-  
-  vector<Interval_pair> Ipairs = returnMemTuplesToIntervals(bo, false);
-  //  Ipairs = filterIntervals(Ipairs, (Ipairs.size() > index.size())? Ipairs.size() : index.size());
-  //  cout << "filtered intervals, and generated intervals from SA tuples, " << Ipairs.size() << endl;
- 
+  cout << endl;
   for(int i = 0; i < Ipairs.size(); i++){
     cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
   }
   
   auto chains = chaining(Ipairs, text2.size());
-  cout << "Chaining done" << endl;
-
   auto chainints = chainingOutput(chains, Ipairs).first;
-
   auto absent = absentIntervals(chainints, index, index2);
+  
   vector<pair<Interval_pair, int>> absentEdits;
   int totalEditDistance = 0;
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1){
-           ed = absent[i].reverse.right - absent[i].reverse.left;
-	   ed = 0;
-       //continue;
+      ed = absent[i].reverse.right - absent[i].reverse.left+1;
+      //ed = 0;
+      //continue;
     }
     else if(absent[i].reverse.left == -1){
-      ed = absent[i].forward.right - absent[i].forward.left;
-      ed = 0;
+      ed = absent[i].forward.right - absent[i].forward.left+1;
+      //ed = 0;
       //continue;
     }else{
       EdlibAlignResult result = edlibAlign(text.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
 					   text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
-					   edlibDefaultAlignConfig());
+					   edlibConf);
       ed = result.editDistance;
       edlibFreeAlignResult(result);
     }
@@ -375,7 +345,6 @@ int main(int argc, char *argv[]){
     int length = ((b-a) > (d - c))? (b-a) : (d-c);
     
     cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
-
     
     cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
 	 << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
@@ -386,7 +355,6 @@ int main(int argc, char *argv[]){
   }
 
   cout << "total edit distance became: " << totalEditDistance << endl;
-  cout << "taking lenght difference into account: " << totalEditDistance - (abs(index2.size()-1 - index.size()-1)) << endl;
   int ci = 0;
   int ai = 0;
   bool absentFirst = true;
@@ -442,14 +410,7 @@ int main(int argc, char *argv[]){
     }else{
       tempED += ed;
     }
-
-    
-    
-    
-    
-
   }
-
 }
   
 

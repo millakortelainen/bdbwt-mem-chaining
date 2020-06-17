@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include "include/BD_BWT_index.hh"
 #include "include/Iterators.hh"
@@ -429,13 +428,12 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   }
   int dfilter = ((sum/collectedSubroutineCalls.size())-1);
   dfilter = (dfilter > minimumDepth)? dfilter: minimumDepth;
+  dfilter = minimumDepth;
   cout << "minimum depth based on sampling " << dfilter << endl;
   ret.reserve(collectedSubroutineCalls.size()*2);
   vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
   //rettempThreadContainer.reserve(omp_get_max_threads());
   
-
-
 #pragma omp parallel for
   for(int i = 0; i < collectedSubroutineCalls.size(); i++){
     auto p = collectedSubroutineCalls[i];
@@ -601,9 +599,9 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
 			       << C_d[j].second << "("<< C_d[j].first << ")," << endl;
       
       auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-      if     (C_c[j].second == max) C[j] = C_c[j];
-      else if(C_a[j].second == max) C[j] = C_a[j];
+      if     (C_a[j].second == max) C[j] = C_a[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
+      else if(C_c[j].second == max) C[j] = C_c[j];
       else if(C_d[j].second == max) C[j] = C_d[j];
 
       auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
