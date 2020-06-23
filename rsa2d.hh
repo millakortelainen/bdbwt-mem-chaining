@@ -1,3 +1,5 @@
+#ifndef BDBWT_MEM_CHAIN_RSA2D_HH
+#define BDBWT_MEM_CHAIN_RSA2D_HH
 #include <stdio.h>
 #include <iostream>
 #include <vector>
@@ -154,3 +156,4 @@ struct cell2d{
   }
 };
   
+#endif

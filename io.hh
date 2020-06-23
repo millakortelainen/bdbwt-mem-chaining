@@ -1,4 +1,9 @@
+#ifndef BDBWT_MEM_CHAIN_IO_HH
+#define BDBWT_MEM_CHAIN_IO_HH
 #include <fstream>
+#include <vector>
+#include <stdlib.h>
+#include <iostream>
 using namespace std;
 
 vector<string> readInputFromFasta(string filename){
@@ -30,3 +35,14 @@ vector<string> readInputFromFasta(string filename){
   texts.push_back(text);
   return texts;
 }
+void writeStringToFasta(string filename, string fasta){
+  ofstream f (filename, ofstream::out);
+  f << ">unnamed";
+  for(int i = 0; i < fasta.length(); i++){
+    if((i % 70) == 0){
+      f << endl;
+    }
+    f << fasta[i];
+  } 
+}
+#endif

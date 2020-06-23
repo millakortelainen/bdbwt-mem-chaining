@@ -6,5 +6,6 @@ all:
 	g++  -fopenmp $(EDLIB) $(BDBWT)io.hh $(BDBWT)util.hh $(BDBWT)rsa1d.hh $(BDBWT)rsa2d.hh $(BDBWT)mem.hh $(BDBWT)minimizer.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14
 prof:
 	g++  -fopenmp $(EDLIB) $(BDBWT)io.hh -g $(BDBWT)util.hh $(BDBWT)rsa1d.hh $(BDBWT)rsa2d.hh -g $(BDBWT)mem.hh $(BDBWT)minimizer.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14 -pg
-
+mutator:
+	g++ $(BDBWT)io.hh $(BDBWT)textMutator.cpp -o textMutator -std=c++14
 

@@ -7,6 +7,7 @@
 #include "io.hh"
 #include <math.h>
 #include <algorithm>
+#include <chrono>
 //#include "util.hh"
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
@@ -126,8 +127,6 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
     if(i < 0){
       break;
     }
-    //cout << "chains[i].first= " << chains.at(i).first << "...\t\t";
-    //cout << "chains[i].second= " << chains.at(i).second.first <<":"<<chains.at(i).second.second << "...\t";
     if(chains.at(i).second.second >= 0){
       auto I = Ipairs.at(chains.at(i).second.second);
       if(chainIntervals.size() > 0 && chains.size() > 1 &&
@@ -151,7 +150,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   }
   return (make_pair(chainIntervals, symcov));
 }
-vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2 ){
+vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2){
   vector<tuple<int,int,int>> mems;
   bool threadedBWT = true;
   if(threadedBWT){
@@ -179,20 +178,16 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<
       mems.insert(mems.end(), memFilter.begin(), memFilter.end());
   }
   else{
-    mems = bwt_mem2(index,index2);
+    mems = bwt_mem2(index,index2, BD_BWT_index<>::END);
   }
 
   cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
-  //auto filtered = filterMems(mems);
-  //cout << "filtered mems down to: " << filtered.size() << "..."; 
+
   if(mems.size() == 0){
     cout << "could not find significiantly large enough MEMS " << endl;
     return mems;
   }
-  
-  //  naiveOutput(index,index2,filtered,text,text2, true);
-  //cout << endl;
   auto bo = batchOutput(index, index2, mems, false);
   cout << "batchOutput into SA indices done" << "...";
   sort(bo.begin(), bo.end(), memSort); //overall Speed increase
@@ -244,19 +239,26 @@ int main(int argc, char *argv[]){
     break;
   }
   }
-  auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0);
-  //  auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0);
+  //chrono::steady_clock::time_point _begin = chrono::steady_clock::now();
+  //chrono::steady_clock::time_point _end = chrono::steady_clock::now();
+  //printf(", took %ld seconds\n", result.editDistance,chrono::duration_cast<chrono::seconds>(_end - _begin).count());
+  
+  //auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0);
+  auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0);
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
   vector<Interval_pair> Ipairs;
-  
-  EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibConf);
-  printf("edit_distance = %d\n", result.editDistance);
+  int originalEditDistance = -1;
 
-  char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
-  printf("%s", cigar);
-  free(cigar);
-  edlibFreeAlignResult(result);
+  if(false){
+    chrono::steady_clock::time_point edlib1_begin = chrono::steady_clock::now();
+    EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibConf);
+    originalEditDistance = result.editDistance;
+    chrono::steady_clock::time_point edlib1_end = chrono::steady_clock::now();
+    printf("edit_distance of whole strings = %d, took %ld milliseconds\n", result.editDistance,chrono::duration_cast<chrono::milliseconds>(edlib1_end - edlib1_begin).count());
+
+    edlibFreeAlignResult(result);
+  }
   
   auto depthargmin = 3; // Default minimum depth
   auto loga = ceil(log10(index.size()-1) / log10(4)+1)+log10(text.size()-1);
@@ -268,53 +270,47 @@ int main(int argc, char *argv[]){
   }else{
     minimumDepth = (depthargmin > deptharg)? depthargmin : deptharg; 
   }
-  int minimizerWindowSize = minimumDepth*0.50;
-  
+  int minimizerWindowSize = minimumDepth-1;
   int computationMode = strtol(argv[2],NULL,10);
+  
+  chrono::steady_clock::time_point mems_begin = chrono::steady_clock::now();
   switch(computationMode){
   case 0: { //BWT Only
-    //BD_BWT_index<> index((uint8_t*)text.c_str());
-    //BD_BWT_index<> index2((uint8_t*)text2.c_str());
-    cout << "done BWT's" << endl;
     auto bo = bwt_to_int_tuples(index, index2);
     Ipairs = returnMemTuplesToIntervals(bo, false);
-    break;
-  }
+    break;}
   case 1: { //Minimizer Only
-    auto mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
-    cout << endl;
-    auto mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
-    cout << endl;
+    vector<pair<string,int>> mini1;
+    vector<pair<string,int>> mini2;
+#pragma opm parallel sections
+    {
+#pragma opm section
+      {
+	mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
+      }
+#pragma opm section
+      {
+	mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
+      }
+    }
     auto mimimems = minimizerTuples(mini1,mini2);
     cout << endl;
     auto minimems = memifyMinimizers(mimimems, text, text2);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
-    break;
+    break;}
   }
-  case 2: { //Hybrid
-    auto mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
-    cout << endl;
-    auto mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
-    cout << endl;
-    auto mimimems = minimizerTuples(mini1,mini2);
-    cout << endl;
-    auto minimems = memifyMinimizers(mimimems, text, text2);
-    //Ipairs = returnMemTuplesToIntervals(minimems, false);
-
-    cout << "done BWT's" << endl;
-    auto bo = bwt_to_int_tuples(index, index2);
-    Ipairs = returnMemTuplesToIntervals(bo, false);
-    break;
-    break;
-  }
-  }
+  chrono::steady_clock::time_point mems_end = chrono::steady_clock::now();
+  printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());  
   
   cout << endl;
-  for(int i = 0; i < Ipairs.size(); i++){
-    cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
-  }
-  
+  // for(int i = 0; i < Ipairs.size(); i++){
+  //   cout <<"Ipairs["<< i << "]: " << Ipairs[i].toString() << "\n";
+  // }
+
+  chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
   auto chains = chaining(Ipairs, text2.size());
+  chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
+  printf("chains took %ld seconds\n", chrono::duration_cast<chrono::seconds>(chains_end - chains_begin).count());  
   auto chainints = chainingOutput(chains, Ipairs).first;
   auto absent = absentIntervals(chainints, index, index2);
   
@@ -324,13 +320,9 @@ int main(int argc, char *argv[]){
     int ed;
     if(absent[i].forward.left == -1){
       ed = absent[i].reverse.right - absent[i].reverse.left+1;
-      //ed = 0;
-      //continue;
     }
     else if(absent[i].reverse.left == -1){
       ed = absent[i].forward.right - absent[i].forward.left+1;
-      //ed = 0;
-      //continue;
     }else{
       EdlibAlignResult result = edlibAlign(text.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
 					   text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
@@ -354,13 +346,14 @@ int main(int argc, char *argv[]){
     absentEdits.push_back(make_pair(absent[i], ed));
   }
 
-  cout << "total edit distance became: " << totalEditDistance << endl;
+  cout << "total edit distance became: " << totalEditDistance << "/ " << originalEditDistance << endl;
+  return 0;
   int ci = 0;
   int ai = 0;
   bool absentFirst = true;
   vector<pair<Interval_pair, int>> combinedED;
   
-  if (chainints[0].forward.left > absentEdits[0].first.forward.left){
+  if(chainints[0].forward.left > absentEdits[0].first.forward.left){
     absentFirst = false;
   }
   while(ci < chainints.size() || ai < absentEdits.size()){ // print all in order

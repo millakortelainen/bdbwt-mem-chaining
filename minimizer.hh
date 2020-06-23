@@ -1,3 +1,5 @@
+#ifndef BDBWT_MEM_CHAIN_MINIMIZER_HH
+#define BDBWT_MEM_CHAIN_MINIMIZER_HH
 #include <iostream>
 #include <vector>
 #include <set>
@@ -10,6 +12,10 @@ struct mimsort {
     return first.first < second.first;
   }
 };
+bool mimCompare (pair<string,int> first, pair<string,int> second){
+  return first.first < second.first;
+}
+
 
 vector<pair<string,int>> minimizers(string t1, int k, int w){
   vector<set<pair<string,int>,mimsort>> kmers((t1.size()/w));
@@ -58,12 +64,20 @@ vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<p
     }
   }
   int i = 0;
+  sort(m1.begin(), m1.end(), mimCompare);
+  sort(m2.begin(), m2.end(), mimCompare);
+  cout << "sorted minimems" << endl;
   for(auto x : m1){
     for(auto y : m2){
       if(x.first == y.first){
 	auto tup = make_tuple(x.second, y.second, x.first.length());
-	//	cout << "mini tuple (" << x.second << "," <<  y.second << "," << x.first.length() << ")" << endl;
+	if(m2.size() > 2){
+	  m2.erase(m2.begin());
+	}
 	ret.push_back(tup);
+      }
+      if(x.first.length() > 0 && y.first.length() > 0 && x.first.at(0) != y.first.at(0)){
+	break;
       }
     }
   }
@@ -90,12 +104,25 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, str
   for(auto m : mini){
     int i,j,k;
     tie(i,j,k) = m;
-    
-    while(i > 0 && j > 0 && i < text.length() && j < text2.length() && text.at(i-1) == text2.at(j-1)){
-      i--;
-      j--;
-      k++;
+    int i2,j2,k2;
+    //while(i > 0 && j > 0 && i < text.length() && j < text2.length() && text.at(i-1) == text2.at(j-1)){
+    i2 = i;
+    j2 = j;
+    k2 = k;
+    while(i2-k2 >= 0 && j2-k2 >= 0 && text.substr(i2,k).compare(text2.substr(j2,k)) == 0){
+      i2 = i2-k;
+      j2 = j2-k;
+      k2 = k2+k;
     }
+    while(text.substr(i2,k2) != text2.substr(j2,k2) && (i2+k2) < text.length() && (j2+k2) < text2.length() && k2 > 0){
+      //      cout << "minimem: (" << i2 << "," << j2 << "," << k2 << ") "<< endl;
+      i2 = i2+1;
+      j2 = j2+1;
+      k2 = k2-1;
+    }
+    //cout << "second done" << endl;
+    i = i2; j = j2; k = k2;
+    //}
     while(i+k < text.length() && j+k < text2.length() && text.at(i+k) == text2.at(j+k)){
       k++;
     }
@@ -111,3 +138,4 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, str
   // }
   return miniMems;
 }
+#endif

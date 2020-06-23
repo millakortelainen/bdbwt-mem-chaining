@@ -1,3 +1,5 @@
+#ifndef BDBWT_MEM_CHAIN_RSA1D_HH
+#define BDBWT_MEM_CHAIN_RSA1D_HH
 #include <stdio.h>
 #include <iostream>
 #include <vector>
@@ -144,3 +146,4 @@ public:
   }
 };
   
+#endif

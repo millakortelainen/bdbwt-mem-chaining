@@ -1,5 +1,5 @@
-#ifndef UTIL_HH
-#define UTIL_HH
+#ifndef BDBWT_MEM_CHAIN_UTIL_HH
+#define BDBWT_MEM_CHAIN_UTIL_HH
 #include <iostream>
 #include <string>
 #include "include/BD_BWT_index.hh"
