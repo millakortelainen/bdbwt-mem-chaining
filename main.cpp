@@ -8,26 +8,29 @@
 #include <math.h>
 #include <algorithm>
 #include <chrono>
+#include "sdsl/int_vector.hpp"
+#include "sdsl/rank_support.hpp"
+#include "sdsl/select_support.hpp"
 //#include "util.hh"
 using namespace std;
 void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
-  auto retSA = buildSAfromBWT(index); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
-  auto retSA2 = buildSAfromBWT(index2);
+  auto retSA = buildSAfromBWT(index, true); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
+  auto retSA2 = buildSAfromBWT(index2, true);
 
   //Naive returning of the intervals
   for(auto a : memVector){
     int i, j, depth;
     tie(i,j,depth) = a;
-    int begin_i= retSA[i]+1;
-    int begin_j= retSA2[j]+1;
+    int begin_i= retSA[i].first+1;
+    int begin_j= retSA2[j].first+1;
     
     //Handling the specific special case when SA^S[i] = text.size(); We use index.size()-1 instead so wouldn't need to keep the text in memory at all.
     if(begin_i >= index.size()-1){
-      begin_i = index.size()-retSA[i]-1; //Index.size() will always be text.size()+1 due to the added END marker. Furthermore, we need to minus one to get proper offset from general case of begin_i = retSA[i]+1;
+      begin_i = index.size()-retSA[i].first-1; //Index.size() will always be text.size()+1 due to the added END marker. Furthermore, we need to minus one to get proper offset from general case of begin_i = retSA[i]+1;
     }
     //Handling the specific special case when SA^T[j] = text2.size(); We use index2.size()-1 instead so wouldn't need to keep the text in memory at all.
     if(begin_j >= index2.size()-1){
-      begin_j = index2.size()-retSA2[j]-1; //Analogously to above. 
+      begin_j = index2.size()-retSA2[j].first-1; //Analogously to above. 
     }
     int end_i = begin_i+depth-1;
     int end_j = begin_j+depth-1;
@@ -64,10 +67,10 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
     int i,j,d;
     tie(i,j,d) = m;
     
-    newOcc.key  = i;
-    newOcc2.key = j;
-    newOcc.primary  = p;
-    newOcc2.primary = p;
+    newOcc.first  = i;
+    newOcc2.first = j;
+    newOcc.second  = p;
+    newOcc2.second = p;
     p++;
     
     marked1[i] = true;
@@ -81,9 +84,9 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   int maxkey = -1;
   for(int k = 0; k < memVector.size(); k++){
     int i,j,d;
-    tie(i,j,d) = memVector[bl1[k].primary];
-    int ik = bl1[k].key+1;
-    int jk = bl2[k].key+1;
+    tie(i,j,d) = memVector[bl1[k].second];
+    int ik = bl1[k].first+1;
+    int jk = bl2[k].first+1;
     if(ik+1 >= index.size()-1){ //Special case when interval begins at the beginning, SA[i]=text.size()
       ik = index.size()-ik;
     }
@@ -150,7 +153,8 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   }
   return (make_pair(chainIntervals, symcov));
 }
-vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2){
+//set<tuple<Interval_pair,Interval_pair,int>> seeds;
+vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2, set<tuple<Interval_pair,Interval_pair,int>> seeds = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
   vector<tuple<int,int,int>> mems;
   bool threadedBWT = true;
   if(threadedBWT){
@@ -166,19 +170,19 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<
     }
 #pragma omp parallel for
     for(int i = 0; i < enumLeft.size(); i++){
-      auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+      auto retMem = bwt_mem2(index, index2, enumLeft.at(i), seeds);
       memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
     }
-      cout << "done finding mems in threads, collapsing";
-      for(auto a : memThreads){
-	for(auto b : a){
-	  memFilter.insert(b);
-	}
+    cout << "done finding mems in threads, collapsing";
+    for(auto a : memThreads){
+      for(auto b : a){
+	memFilter.insert(b);
       }
-      mems.insert(mems.end(), memFilter.begin(), memFilter.end());
+    }
+    mems.insert(mems.end(), memFilter.begin(), memFilter.end());
   }
   else{
-    mems = bwt_mem2(index,index2, BD_BWT_index<>::END);
+    mems = bwt_mem2(index,index2, BD_BWT_index<>::END, seeds);
   }
 
   cout << "found mems," << mems.size() << "...";
@@ -197,7 +201,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<
 int main(int argc, char *argv[]){
   string text;
   string text2;
-  switch(0){
+  switch(4){
   case 0: {
     if(argc > 4){
       auto fileinput = readInputFromFasta(argv[3]);
@@ -229,8 +233,8 @@ int main(int argc, char *argv[]){
     break;
   }
   case 4: {
-    text  = "GTGCGTGATCATCATTTA";
-    text2 = "AGTGCGCGTGACATCTTT";
+    text  = "GTGCGTGATCATCATTT";
+    text2 = "AGTGCGCGTGACATCTT";
     break;
   }
   case 500: {
@@ -298,6 +302,83 @@ int main(int argc, char *argv[]){
     auto minimems = memifyMinimizers(mimimems, text, text2);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
     break;}
+  case 2: { //hybrid
+    //pretty_print_all(index, text);  pretty_print_all(index2, text2);
+    vector<pair<string,int>> mini1;
+    vector<pair<string,int>> mini2;
+#pragma opm parallel sections
+    {
+#pragma opm section
+      {
+	mini1 = minimizers(text,minimumDepth,minimizerWindowSize);
+      }
+#pragma opm section
+      {
+	mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
+      }
+    }
+    int k = 3;
+    int q = 1;
+    auto SA1 = buildSAfromBWT(index, true);
+    auto plcp1 = createPLCP(index, q, text, true, SA1); //index, q, text, make_lcp
+    auto b1 = partitioning(k, index, plcp1); //k, index, plcp
+
+    auto SA2 = buildSAfromBWT(index, false);
+    reverse(text.begin(), text.end());
+    auto plcp2 = createPLCP(index, q, text, true, SA2);
+    auto b2 = partitioning(k, index, plcp2);
+    reverse(text.begin(), text.end());
+    
+    for(int i = 0; i < plcp1.first.size(); i++){
+      cout << i << "\tplcp1: " << plcp1.first[i] << "\t lcp1: " << plcp1.second[i]
+    	   << "---" << "\tplcp2: " << plcp2.first[i] << "\t lcp2: " << plcp2.second[i] << endl;
+    }
+    for(int i = 0; i < b1.size(); i++){
+      cout << b1[i] << ", ";
+      cout << "\33[3D\33[1B" << b2[i] << ", \33[1A";
+    }cout <<"\33[2B"<< endl;
+  
+    auto P = minimizerToBWTInterval(b1, mini1, SA1);
+    auto P2 = minimizerToBWTInterval(b2, mini1, SA2);
+    vector<Interval_pair> set1;
+    for(int ip = 0; ip < P.size(); ip++){
+      set1.push_back(Interval_pair(P[ip],P2[ip]));
+    }
+    
+    auto SA3 = buildSAfromBWT(index2, true);
+    auto plcp3 = createPLCP(index2, q, text2, true, SA3); //index, q, text, make_lcp
+    auto b3 = partitioning(k, index2, plcp3); //k, index, plcp
+
+    auto SA4 = buildSAfromBWT(index2, false);
+    reverse(text2.begin(), text2.end());
+    auto plcp4 = createPLCP(index2, q, text2, true, SA4);
+    auto b4 = partitioning(k, index2, plcp4);
+    reverse(text2.begin(), text2.end());
+
+    auto P3 = minimizerToBWTInterval(b3, mini2, SA3);
+    auto P4 = minimizerToBWTInterval(b4, mini2, SA4);
+    vector<Interval_pair> set2;
+    for(int ip = 0; ip < P3.size(); ip++){
+      set2.push_back(Interval_pair(P3[ip],P4[ip]));
+    }
+    
+    for(auto p : set1){
+      cout << "Interval_pair: " << p.toString() << endl;
+    }
+
+    for(auto p : set2){
+      cout << "Interval_pair2: " << p.toString() << endl;
+    }
+    set<tuple<Interval_pair,Interval_pair,int>> seeds;
+    for(int i = 0; i < set1.size(); i++){
+      seeds.insert(make_tuple(set1[i], set2[i], k));
+    }
+
+    auto bo = bwt_to_int_tuples(index, index2, seeds);
+    Ipairs = returnMemTuplesToIntervals(bo, false);
+      
+    break;
+  }
   }
   chrono::steady_clock::time_point mems_end = chrono::steady_clock::now();
   printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());  
@@ -312,6 +393,12 @@ int main(int argc, char *argv[]){
   chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
   printf("chains took %ld seconds\n", chrono::duration_cast<chrono::seconds>(chains_end - chains_begin).count());  
   auto chainints = chainingOutput(chains, Ipairs).first;
+  for(int i = 0; i < chainints.size(); i++){
+    int a = chainints[i].forward.left;
+    int b = chainints[i].reverse.left;
+    int d = chainints[i].forward.right - a+1;
+    cout << text.substr(a,d) << ",\t" << text2.substr(b,d) << endl;
+  }
   auto absent = absentIntervals(chainints, index, index2);
   
   vector<pair<Interval_pair, int>> absentEdits;
@@ -347,6 +434,8 @@ int main(int argc, char *argv[]){
   }
 
   cout << "total edit distance became: " << totalEditDistance << "/ " << originalEditDistance << endl;
+ 
+  
   return 0;
   int ci = 0;
   int ai = 0;

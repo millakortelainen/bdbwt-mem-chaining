@@ -15,8 +15,8 @@ struct suffix{
   string suffix;
 };
 struct occStruct{
-  int key;
-  int primary;
+  int first;
+  int second;
 };
 /* END_STRUCTS */
 
@@ -80,7 +80,7 @@ vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
     int r1 = pow(rad,i+1);
     int r2 = pow(rad,i);
     for(int j = 0; j < list.size(); j++){
-      auto idx = ((list[j].primary) % r1) / r2;
+      auto idx = ((list[j].second) % r1) / r2;
       radix[idx].push_back(list[j]);
     }
 	
@@ -239,9 +239,9 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
 
 /*BEGIN_AUX*/
 /** Map LF values for the given index.
-    Sreturn pair<map<int,int>,int> such that .first is the actual mapping, and .second is the zeroth index so that we don't need to search for it again.
+    return pair<map<int,int>,int> such that .first is the actual mapping, and .second is the zeroth index so that we don't need to search for it again.
 */
-pair<map<int,int>,int> mapLF(BD_BWT_index<>& index){
+pair<map<int,int>,int> mapLF(BD_BWT_index<>& index, bool forward){
   map<char,int> m;
   map<int,int> lfmapping;
   auto C = index.get_global_c_array();
@@ -251,7 +251,13 @@ pair<map<int,int>,int> mapLF(BD_BWT_index<>& index){
   }
   
   for(int i = 0; i < index.size(); i++){
-    char l = char(index.forward_bwt_at(i));
+    char l;
+    if(forward){
+      l = char(index.forward_bwt_at(i));
+    }
+    else{
+      l = char(index.backward_bwt_at(i));
+    }
     lfmapping[i] = C[l]+m[l];
     if(lfmapping[i] == 0){
       zeroth_index = i;
@@ -280,25 +286,40 @@ int* build_suffix_array(string text){
 }
 
 /** Creating SA with use of recursive LF mapping.
+    The second in the pair is obsolete and should be removed. (from pretty print as well)
 */
-vector<int> int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int i, int currIndex, int k, vector<int> retSA){
+pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA){
   if(k < idxS.size()-1){
-    retSA[currIndex] = idxS.size()-1 - k;
-    return int_ret_recurse(idxS, LFI,i,LFI[currIndex], k+1, retSA);
+    //retSA[currIndex] = make_pair(idxS.size()-k-1, currIndex);
+    retSA[currIndex] = idxS.size()-k-1;
+    retISA[idxS.size()-k-1] = currIndex;
+    return int_ret_recurse(idxS, LFI, LFI[currIndex], k+1, retSA, retISA);
   }else{
     retSA[currIndex] = idxS.size()-k-1;
-    return retSA;
+    retISA[idxS.size()-k-1] = currIndex;
+    return make_pair(retSA, retISA);
   }  
 }
 /** Creating SA with use of recursive LF mapping.
+    Obsolete outside of naive output and pretty print
 */
-vector<int> buildSAfromBWT(BD_BWT_index<> idxS, int i = 0){
-  auto lfS = mapLF(idxS);
-  vector<int> retSA(idxS.size(),-9);
-  retSA[lfS.second] = idxS.size()-1;
-  retSA = int_ret_recurse(idxS, lfS.first, i, lfS.first[lfS.second],  0, retSA);
+vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
+  auto lfS = mapLF(idxS, revIndexSA);
+  //vector<int64_t> C = idxS.get_global_c_array();
+  vector<int> SA(idxS.size(),-1);
+  vector<int> ISA(idxS.size(),-1);
+  SA[lfS.second] = idxS.size()-1;
+  ISA[idxS.size()-1] = lfS.second;
+  auto recursion = int_ret_recurse(idxS, lfS.first, lfS.first[lfS.second],  0, SA, ISA);
+  auto retSA = recursion.first;
+  auto retISA = recursion.second;
+
+  vector<pair<int,int>> ret;
+  for(int i = 0; i < retSA.size(); i++){
+    ret.push_back(make_pair(retSA[i], retISA[i]));
+  }
   
-  return retSA;    
+  return ret;
 }
 
 int chainingMax(int &a, int &b, int &c, int &d){
@@ -337,17 +358,17 @@ param text1 string original text that the BWT is based on.
 void pretty_print_all(BD_BWT_index<>& index, string text1){
   string separator = "+------------------------------------------------+\n";
   cout << separator;
-  auto SA = build_suffix_array(text1);
+  auto SA = buildSAfromBWT(index, true);
   cout << separator;
   cout << "Text: " << text1 << "\n";
   cout << separator;
-  cout << "| bwd\t" << "ln\t" << "fwd\t" << "LF\t" << "SA[i]\t" << "\t |\n";
-  auto mapping = mapLF(index).first;
+  cout << "| bwd\t" << "ln\t" << "fwd\t" << "LF\t" << "SA[i]\t" << "SA[i].s" << "\t |\n";
+  auto mapping = mapLF(index, true).first;
   
   for(int i = 0; i < index.size(); i++){
     char t = (char)index.forward_bwt_at(i);
     char tr= (char)index.backward_bwt_at(i);
-    cout << "| "<< tr << "\t("<<i<<")\t" << t << "\t" << mapping[i] << "\t" << SA[i] << "\t\t |\n";
+    cout << "| "<< tr << "\t("<<i<<")\t" << t << "\t" << mapping[i] << "\t" << SA[i].first << "\t" << SA[i].second << "\t |\n";
   }
   cout << separator;
 }

@@ -226,7 +226,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
 
     return vector<tuple<int,int,int>> returns tuples (i,j,d) where i,j correspond to starting points of MEM's in the two indexes.
 */
-vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel = BD_BWT_index<>::END){
+vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel = BD_BWT_index<>::END, set<tuple<Interval_pair,Interval_pair,int>> seed = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
   vector<pair<pair<Interval_pair,Interval_pair>,int>> collectedSubroutineCalls;
   vector<tuple<int,int,int>> ret;
   set<tuple<Interval_pair,Interval_pair,int>> S;
@@ -235,13 +235,17 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   int itrl1Size = idxS.size()-1;
   int itrl2Size = idxT.size()-1;
   int maxDepth = -1;
-  S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  if(seed.size() == 1){
+    S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  }else{
+    S.swap(seed);
+  }
   while(!S.empty()){
-    if(!processed.insert(*S.begin()).second){
-      cout << "already processed." << endl;
-      S.erase(S.begin());
-      continue;
-    }
+    // if(!processed.insert(*S.begin()).second){
+    //   cout << "already processed." << endl;
+    //   S.erase(S.begin());
+    //   continue;
+    // }
     tie(ip0,ip1,depth) = *S.begin();
     if(depth > maxDepth && depth % 5 == 0){
       maxDepth = depth;
@@ -339,6 +343,12 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       S.insert(make_tuple(x.first,x.second, depth+1));
     }
   }
+  for(auto p : processed){
+    Interval_pair i1,i2;
+    int d;
+    tie(i1,i2,d) = p;
+    cout << "Processed: " << i1.toString() << "1- , -2" << i2.toString() << endl;
+  }
 
   if(collectedSubroutineCalls.size() == 0){
     cout << "Could not find any MEM's with significiant enough length" << endl;
@@ -390,13 +400,13 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
   int n = bwt.size();
   vector<struct occStruct> translate;
   vector<struct occStruct> ret;
-  auto LFindex = mapLF(bwt).first;
+  auto LFindex = mapLF(bwt, true).first;
   
   for(int j = n; j > 0; j--){
     if(marked[i]){
       struct occStruct temp;      
-      temp.key = i;
-      temp.primary = j-1;
+      temp.first = i;
+      temp.second = j-1;
       translate.push_back(temp);
     }
     i = LFindex[i];
@@ -418,10 +428,10 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
   int y = 0;
   while(x < pairs.size()){
     auto a = pairs[x];
-    if(a.key == translate[y].key){
+    if(a.first == translate[y].first){
       struct occStruct temp;
-      temp.key = translate[y].primary;
-      temp.primary = a.primary;
+      temp.first = translate[y].second;
+      temp.second = a.second;
       ret.push_back(temp);
       x++;
     }else{
