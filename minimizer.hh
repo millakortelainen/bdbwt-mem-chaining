@@ -19,28 +19,27 @@ bool mimCompare (pair<string,int> first, pair<string,int> second){
 
 
 vector<pair<string,int>> minimizers(string t1, int k, int w){
-  vector<set<pair<string,int>,mimsort>> kmers((t1.size()/w));
+  vector<set<pair<string,int>,mimsort>> kmers((t1.size()));
   vector<pair<string,int>> ret;
-  for(int i = 0; i <= t1.size()-k; i++){
-    kmers.at((int)(i/w)).insert(make_pair(t1.substr(i,k),i));
+  for(int i = 0; i < t1.size()-k; i++){
+    kmers.at(i).insert(make_pair(t1.substr(i,k),i));
   }
   for(auto km : kmers){
     if(!km.empty()){
       auto x = *km.begin();
-      //cout << x.first << endl;
+      cout << x.first << endl;
       ret.push_back(x);
     }
   }
   cout << "found " << ret.size() << " minimizers" << endl;
-  sort(ret.begin(), ret.end(), minimizerLexSort);
+  //  sort(ret.begin(), ret.end(), minimizerLexSort);
   return ret;
 }
 
-vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
   unordered_set<string> m1Kmer(m1.size()-1);
   unordered_set<string> m2Kmer(m2.size()-1);
   set<string> anchorMers;
-  vector<tuple<int,int,int>> ret;
   for(auto first : m1){
     m1Kmer.insert(first.first);
   }
@@ -52,8 +51,8 @@ vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<p
       anchorMers.insert(m);
     }
   }
-  // for(auto j : anchorMers){
-  //   cout <<"anchor: "<< j << endl;
+  // for(auto m: anchorMers){
+  //   cout << "anchorMer: "<< m << endl;
   // }
   int maxSize = (m1.size()-1 > m2.size()-1)? m1.size()-1 : m2.size()-1;
   for(int i = 0; i < maxSize; i++){
@@ -64,26 +63,42 @@ vector<tuple<int,int,int>> minimizerTuples(vector<pair<string,int>> m1, vector<p
       m2.erase(m2.begin()+i);
     }
   }
-  int i = 0;
-  sort(m1.begin(), m1.end(), mimCompare);
-  sort(m2.begin(), m2.end(), mimCompare);
+  return make_pair(m1,m2);
+}
+pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<string,int>> > > minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+  //  pair<vector<tuple<int,int,int>>,pair<vector<pair<string,int>>,vector<pair<string,int>>>> ret;
+  vector<tuple<int,int,int>> retTuple;
+  pair<vector<pair<string,int>>,vector<pair<string,int>>> retRaw;
+  
+  auto muts = mutualMinimizers(m1,m2);
+  m1 = muts.first;
+  m2 = muts.second;
+  //sort(m1.begin(), m1.end(), mimCompare);
+  //sort(m2.begin(), m2.end(), mimCompare);
   cout << "sorted minimems" << endl;
   for(auto x : m1){
+    int i = 0;
     for(auto y : m2){
-      if(x.first == y.first){
-	auto tup = make_tuple(x.second, y.second, x.first.length());
-	if(m2.size() > 2){
-	  m2.erase(m2.begin());
-	}
-	ret.push_back(tup);
+      i++;
+      //cout << "Comparing: " << x.first << " & " << y.first;
+      if(x.first.compare(y.first) == 0){
+	//	m2.erase(m2.begin(), m2.begin()+i);
+	i = 0;
+	auto tup = make_tuple(x.second, y.second, x.first.length());;
+	//cout << "pushed";
+	retRaw.first.push_back(x);
+	retRaw.second.push_back(y);
+	retTuple.push_back(tup);
+	//break;
       }
-      if(x.first.length() > 0 && y.first.length() > 0 && x.first.at(0) != y.first.at(0)){
-	break;
-      }
+      //      cout << endl;
+      // if(x.first.length() > 0 && y.first.length() > 0 && x.first.at(0) != y.first.at(0)){
+      //	break;
+      //}
     }
   }
-  sort(ret.begin(),ret.begin(),memSort);
-  return ret;
+  sort(retTuple.begin(),retTuple.begin(),memSort);
+  return make_pair(retTuple,retRaw);;
 }
 vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, string text, string text2){
   set<tuple<int,int,int>> miniMemsSet;
@@ -150,20 +165,22 @@ vector<int> createLCPFromPLCP(vector<int> PLCP, vector<pair<int,int>> SA){
 /** Works correctly, not optimal for space as per reference paper.
  By definition: PLCP[SA[j]] = LCP[j].
 */
-pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string t, bool lcp, vector<pair<int,int>> SA){
+pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string t, bool lcp, vector<pair<int,int>> SA, bool direction){
   vector<int> phi(SA.size());
   vector<int> PLCP(SA.size());
-  auto LF = mapLF(index, true);
+  cout << "SA size: " << SA.size() << endl;
+  auto LF = mapLF(index, direction);
   t.append("$");
-  
-  for(int j = 0; j < SA.size(); j++){
+  cout << "enter plcp" << endl;
+  for(int j = 1; j < SA.size(); j++){
     if(SA[j].first % q == 0){
-      phi[SA[j].first/q] = (SA[j-1].first);
+      phi[SA[j].first] = (SA[j-1].first);
     }
   }
   int ell = 0;
   for(int i = 0; i < floor((SA.size()-1)/q); i++){
     int j = phi[i];
+    //    cout << "j = " << j << ", i = " << i << endl;
     while(t.at(i*q+ell) == t.at(j+ell)){
       ell = ell+1;
     }
@@ -179,43 +196,95 @@ pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string t, 
 }
 
 sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,vector<int>> PLCPLCP){
-  sdsl::int_vector<1> B(index.size()+1, 0, 1);
-  B[0] = 1;
-  B[index.size()] = 1;
+  cout << "Enter partitioning" << endl;
   auto PLCP = PLCPLCP.first;
   auto LCP = PLCPLCP.second;
+  
+  sdsl::int_vector<1> B(PLCP.size(), 0, 1);
+  B[0] = 1;
+  B[PLCP.size()-1] = 1;
   for(int i = 0; i < PLCP.size(); i++){
-    if(LCP[i] > k){
+    if(PLCP[i] < k){
       B[i] = 1;
     }
   }
   return B;
 }
 
-vector<Interval> minimizerToBWTInterval(sdsl::int_vector<1> bv, vector<pair<string,int>> mini, vector<pair<int,int>> SA){
-    sdsl::rank_support_v<1> b_rank(&bv);
-    //Returns the amount of ones
-    size_t ones = sdsl::rank_support_v<1>(&bv)(bv.size());
-    sdsl::bit_vector::select_1_type b_select(&bv);
+vector<Interval_pair> minimizerToBWTInterval(sdsl::int_vector<1> bv, sdsl::int_vector<1> bvr, vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr, string text = ""){
+  cout << "Enter minimizerToBWTInterval" << endl;
+  sdsl::rank_support_v<1> b_rank(&bv);
+  sdsl::rank_support_v<1> b_rankr(&bvr);
+  //Returns the amount of ones
+  //  size_t ones = sdsl::rank_support_v<1>(&bv)(bv.size());
+  sdsl::bit_vector::select_1_type b_select(&bv);
+  sdsl::bit_vector::select_1_type b_selectr(&bvr);
+  // for(auto a : bv){
+  //   cout << a << ",";
+  // }
+  //     cout << endl;
+  //rank_support_v<1> returns the amount of 1's up to, but NOT including x in b_rank(x), count(x \in [0...x[ )
+  //cout << b_rank(18) << endl;
+  //bit_vector::select_0_type returns the proper index of x:th 0 in given vector.
+  //cout << b_select(0+1) << endl;
+
+  vector<Interval_pair> P;
+  unordered_set<int> stored;
+  for(int j = 0; j < mini.size(); j++){
+    //    cout << mini[j].second << ", " << mini[j].first << endl;
+    int i = mini[j].second; //mini[j].second denotes the index of the k-mer on the original k-mer listing (all k-mers of text).
+    //i = (i < bv.size()-1)? i : bv.size()-1;
+    //    i = (i > 1)? i : 1;
+    cout << " i = " << i << endl;
+    // auto s  = SA[i].second;
+    // auto s2 = SAr[i].second;
+    // if(i > SA.size()-1){
+    //   i = 0;
+    // }
+    // if(i == 0){
+    //   i = SA.size()-1;
+    // }
+    auto s  = SA[i].second;
+    auto s2 = SAr[i].second;
+
+    // auto s  = i;
+    // auto s2 = i;
+    string text2 = string(text.rbegin(), text.rend());
+    cout << "Minimizer from text: " << text.substr((SA[SA[i].second].first)) << endl;
+    cout << "Minimizer from text rev: " << text2.substr((SAr[SAr[i].second].first)) << endl;
+    int r1 = b_rank(s);
+    int r2 = b_rank(s)+1;
+
+    int r3 = b_rankr(s2);
+    int r4 = b_rankr(s2)+1;
+    cout << "SA[i].first = " << SA[i].first << "\t SA^r[i].first = " << SAr[i].first << endl; 
+    // cout << "b_rank(SA[i].second) r1= " << r1 << endl;
+    // cout << "b_rank(SA[i].second) r2= " << r2 << endl;
+    // cout << "b_rank(SA[i].second) r3= " << r3 << endl;
+    // cout << "b_rank(SA[i].second) r4= " << r4 << endl; 
+    //    cout <<"i: "<< i << endl;
     
-    //rank_support_v<1> returns the amount of 1's up to, but NOT including x in b_rank(x), count(x \in [0...x[ )
-    //cout << b_rank(18) << endl;
-    //bit_vector::select_0_type returns the proper index of x:th 0 in given vector.
-    //cout << b_select(0+1) << endl;
-    
-    vector<Interval> P;
-    for(int j = 1; j < mini.size(); j++){
-      int i = mini[j].second;
-      i = (i < ones-1)? i : ones-1;
-      i = (i > 1)? i : 1;
-      cout <<"i: "<< i << endl;
-      auto a = b_select(b_rank(SA[i].second));
-      auto b = b_select(b_rank(SA[i].second)+1);
-      if(P.size() == 0 || P[P.size()-1] != Interval(a,b)){
-	P.push_back(Interval(a,b));
-      }
+    auto a = b_select(r1);
+    auto b = b_select(r2)-1;
+    auto c = b_selectr(r3);
+    auto d = b_selectr(r4)-1;
+
+    cout << "interval: [" << a << ", " << b  <<"]" << ",[" << c << "," << d << "] >>" << mini[j].first;
+    if((P.size() == 0) || true) {
+      // if(b > SA.size()-1){
+      // 	b = b-SA.size()-1;
+      // 	a = a-SA.size()-1;
+      // }
+      // if(d > SAr.size()-1){
+      // 	d = d-SAr.size()-1;
+      // 	c = c-SAr.size()-1;
+      // }
+      cout << " pushed" << endl;
+      P.push_back(Interval_pair(a,b,c,d));
+      stored.insert(a);
     }
-    return P;
+  }
+  return P;
 }
 
 // vector<struct occStruct> locateReverseSuffixes(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt){

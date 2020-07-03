@@ -56,7 +56,7 @@ bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int
   return (first.first < second.first);
 }
 bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second){
-  return (first.second < second.second);
+  return (first.first < second.first);
 }
 bool intervalSort(const Interval_pair &a, const Interval_pair &b){
   int aac = (a.reverse.left - a.forward.left);
@@ -288,12 +288,14 @@ int* build_suffix_array(string text){
 /** Creating SA with use of recursive LF mapping.
     The second in the pair is obsolete and should be removed. (from pretty print as well)
 */
-pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA){
+pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA, int i = 0){
   if(k < idxS.size()-1){
+    cout << currIndex << "\t" << i << " ";
+    cout << LFI.at(currIndex) << endl;
     //retSA[currIndex] = make_pair(idxS.size()-k-1, currIndex);
-    retSA[currIndex] = idxS.size()-k-1;
-    retISA[idxS.size()-k-1] = currIndex;
-    return int_ret_recurse(idxS, LFI, LFI[currIndex], k+1, retSA, retISA);
+    retSA.at(currIndex) = idxS.size()-k-1;
+    retISA.at(idxS.size()-k-1) = currIndex;
+    return int_ret_recurse(idxS, LFI, LFI.at(currIndex), k+1, retSA, retISA, i+1);
   }else{
     retSA[currIndex] = idxS.size()-k-1;
     retISA[idxS.size()-k-1] = currIndex;
@@ -304,15 +306,28 @@ pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int
     Obsolete outside of naive output and pretty print
 */
 vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
+  cout << idxS.size()-1 << " <- size()" << endl;
+  vector<int> retSA (idxS.size(),-1);
+  vector<int> retISA(idxS.size(),-1);
+  
   auto lfS = mapLF(idxS, revIndexSA);
   //vector<int64_t> C = idxS.get_global_c_array();
   vector<int> SA(idxS.size(),-1);
   vector<int> ISA(idxS.size(),-1);
   SA[lfS.second] = idxS.size()-1;
   ISA[idxS.size()-1] = lfS.second;
-  auto recursion = int_ret_recurse(idxS, lfS.first, lfS.first[lfS.second],  0, SA, ISA);
-  auto retSA = recursion.first;
-  auto retISA = recursion.second;
+  int currIndex = lfS.first[lfS.second];
+  int k = 0;
+  cout << "while" << endl;
+  while(k < idxS.size()){
+    retSA.at(currIndex) = idxS.size()-k-1;
+    retISA.at(idxS.size()-k-1) = currIndex;
+    k++;
+    currIndex = lfS.first.at(currIndex);
+  }
+  //auto recursion = int_ret_recurse(idxS, lfS.first, lfS.first[lfS.second],  0, SA, ISA);
+  //  retSA = recursion.first;
+  //retISA = recursion.second;
 
   vector<pair<int,int>> ret;
   for(int i = 0; i < retSA.size(); i++){

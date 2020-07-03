@@ -105,7 +105,7 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   }
   return retVector;
 }
-pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
+pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs, string text, string text2){
   int maxIndex = 0;
   int maxVal = 0;
   for(int i = 0; i < chains.size(); i++){
@@ -148,7 +148,11 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   }
   int count = 0;
   for(auto c : chainIntervals){
+    auto a = c.forward;
+    auto b = c.reverse;
+    int d = c.forward.right - c.forward.left+1;
     cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
+    cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
     count++;
   }
   return (make_pair(chainIntervals, symcov));
@@ -237,6 +241,11 @@ int main(int argc, char *argv[]){
     text2 = "AGTGCGCGTGACATCTT";
     break;
   }
+  case 5: {
+    text = "CAATTTAAGGCCCGGGGTGCGTGATCATCATTTGTGCGTGTTCATCATTTGTGCGTGATCATCATTT";
+    text2= "CAAAGTAAGGCCCTCCAGTGCAAAGTGATTACCGTGCGTGATCATCATTTAGTGCGCGTGACATCTT";
+    break;
+  }
   case 500: {
     text = "gttcaccatttaaataatcttcaatatcaacacgcgaagctcgcttgcagggatgaactgaatagacctgtttactccggaaaagcaagactatcctggtgctgatgctacggtacattgttcttggcacgattacggactattcacactgaatccgggtggggagggccttatggacacgtaatatgcgcgtactggttggcgttgtagacgcgcaacttcatcgataatctgactgcctgacaagctaccagcaatacgttactccatcccgctatcctcggtactgcttgcggtgtcaccccgttaagtgacgtcctgttcgcggctaggctacgagttgcgttaatgcactctgaatcagaattccgcagcgttaagctggcttcaccagcgtcttcggtctgacttaaacctactcccgacatttctacagtgactactgtgtacgccccacgaagtcaaccccgagctacacctaaccggcctccagcactgcc";
     text2 = "aattcgaatagttagctgacgtacgacatgttaccttaataatataactggtgtccgcgactgagtgctctcctacctcccacgagcctcaggaaaaacgtctttaaatctctacccggagctgtttaaggggaagccaactcgaacctagcagggcattaaatttgtattgcaccaaaacgaccggcttaacattccgtgtctcactggacggaaaaccaacctaagcagtatttggcctcctggtaggcgaaccatctacggtggaccgtataatcggactaaccggcaggtttacacttcgcaatgctacgctgcccagggccgggcccccagtaggtttgcactgtagagggagggccggagtgtatcccccatcggtaactctacatatgcgcaagccgccctgggcaagatcccatcccactcgtgtggctctcgcgccgggtggattgtacgatcggaatcctctggggacgcgcgttcagtaacttcgctta";
@@ -297,13 +306,13 @@ int main(int argc, char *argv[]){
 	mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
       }
     }
-    auto mimimems = minimizerTuples(mini1,mini2);
+    auto mimimems = minimizerTuples(mini1,mini2).first;
     cout << endl;
     auto minimems = memifyMinimizers(mimimems, text, text2);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
     break;}
   case 2: { //hybrid
-    //pretty_print_all(index, text);  pretty_print_all(index2, text2);
+    pretty_print_all(index, text);  pretty_print_all(index2, text2);
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
 #pragma opm parallel sections
@@ -317,63 +326,100 @@ int main(int argc, char *argv[]){
 	mini2 = minimizers(text2,minimumDepth,minimizerWindowSize);
       }
     }
-    int k = 3;
+    // for(int i = 0; i < mini1.size(); i++){
+    //   cout << "mini1: " << mini1[i].first << "("<<mini1[i].second<<")"<< " mini2: " << mini2[i].first << "("<<mini2[i].second<<")"<<endl;
+    // }
+
+    auto muts = minimizerTuples(mini1,mini2).second;
+    //    cout << "muts size: " << muts.size();
+    mini1 = muts.first;
+    mini2 = muts.second;
+    cout << endl;
+    for(int i = 0; i < mini1.size(); i++){
+      cout << "muts mini1: " << mini1[i].first << "("<<mini1[i].second<<")"<< " muts mini2: " << mini2[i].first << "("<<mini2[i].second<<")"<<endl;
+    }
+    
+    cout << "muts done" << endl;
+    int k = minimumDepth;
     int q = 1;
-    auto SA1 = buildSAfromBWT(index, true);
-    auto plcp1 = createPLCP(index, q, text, true, SA1); //index, q, text, make_lcp
-    auto b1 = partitioning(k, index, plcp1); //k, index, plcp
-
-    auto SA2 = buildSAfromBWT(index, false);
-    reverse(text.begin(), text.end());
-    auto plcp2 = createPLCP(index, q, text, true, SA2);
-    auto b2 = partitioning(k, index, plcp2);
-    reverse(text.begin(), text.end());
-    
-    for(int i = 0; i < plcp1.first.size(); i++){
-      cout << i << "\tplcp1: " << plcp1.first[i] << "\t lcp1: " << plcp1.second[i]
-    	   << "---" << "\tplcp2: " << plcp2.first[i] << "\t lcp2: " << plcp2.second[i] << endl;
-    }
-    for(int i = 0; i < b1.size(); i++){
-      cout << b1[i] << ", ";
-      cout << "\33[3D\33[1B" << b2[i] << ", \33[1A";
-    }cout <<"\33[2B"<< endl;
-  
-    auto P = minimizerToBWTInterval(b1, mini1, SA1);
-    auto P2 = minimizerToBWTInterval(b2, mini1, SA2);
     vector<Interval_pair> set1;
-    for(int ip = 0; ip < P.size(); ip++){
-      set1.push_back(Interval_pair(P[ip],P2[ip]));
-    }
-    
-    auto SA3 = buildSAfromBWT(index2, true);
-    auto plcp3 = createPLCP(index2, q, text2, true, SA3); //index, q, text, make_lcp
-    auto b3 = partitioning(k, index2, plcp3); //k, index, plcp
-
-    auto SA4 = buildSAfromBWT(index2, false);
-    reverse(text2.begin(), text2.end());
-    auto plcp4 = createPLCP(index2, q, text2, true, SA4);
-    auto b4 = partitioning(k, index2, plcp4);
-    reverse(text2.begin(), text2.end());
-
-    auto P3 = minimizerToBWTInterval(b3, mini2, SA3);
-    auto P4 = minimizerToBWTInterval(b4, mini2, SA4);
     vector<Interval_pair> set2;
-    for(int ip = 0; ip < P3.size(); ip++){
-      set2.push_back(Interval_pair(P3[ip],P4[ip]));
-    }
-    
-    for(auto p : set1){
-      cout << "Interval_pair: " << p.toString() << endl;
+    vector<pair<int,int>> SA1, SA2, SA3, SA4;
+#pragma opm parallel sections
+    {
+#pragma opm section
+      {
+	SA1 = buildSAfromBWT(index, true);
+      }
+#pragma opm section
+      {
+	SA2 = buildSAfromBWT(index, false);
+      }
+#pragma opm section
+      {
+	SA3 = buildSAfromBWT(index2, true);
+      }
+#pragma opm section
+      {
+	SA4 = buildSAfromBWT(index2, false);
+      }
     }
 
-    for(auto p : set2){
-      cout << "Interval_pair2: " << p.toString() << endl;
+#pragma opm parallel sections
+    {
+#pragma opm section
+      {
+	auto plcp1 = createPLCP(index, q, text, true, SA1, true); //index, q, text, make_lcp
+	auto b1 = partitioning(k, index, plcp1); //k, index, plcp
+	
+	string textr = string(text.rbegin(), text.rend());
+	auto plcp2 = createPLCP(index, q, textr, true, SA2, true);
+	auto b2 = partitioning(k, index, plcp2);
+
+	set1 = minimizerToBWTInterval(b1,b2, mini1, SA1,SA2, text);
+      }
+#pragma opm section
+      {
+	auto plcp3 = createPLCP(index2, q, text2, true, SA3, true); //index, q, text, make_lcp
+	auto b3 = partitioning(k, index2, plcp3); //k, index, plcp
+	
+	string text2r = string(text2.rbegin(), text2.rend());
+	auto plcp4 = createPLCP(index2, q, text2r, true, SA4, true);
+	auto b4 = partitioning(k, index2, plcp4);
+
+	set2 = minimizerToBWTInterval(b3,b4, mini2, SA3,SA4, text2);
+      }
     }
+    // for(int i = 0; i < set1.size(); i++){
+    //   cout << "Interval_pair: " << set1[i].toString() << " Interval_pair2: " << set2[i].toString() << endl;
+    // }
+    // sort(set1.begin(), set1.end(), intervalSort);
+    // sort(set2.begin(), set2.end(), intervalSort);
+    cout << endl;
+    for(int i = 0; i < set2.size(); i++){
+      if(i > set1.size()-1){
+	int b = SA3.at(set2[i].forward.left).first-1;
+	cout << "\t\t Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" <<endl;
+      }else{
+	int a = SA1.at(set1[i].forward.left+1).first;
+	int b = SA3.at(set2[i].forward.left+1).first;
+	cout << "from Set1: " << text.substr(a,k)  << "["<< a << "," << a+k-1 <<"]"<< "mini1: " << mini1[i].first <<
+	  "\t from Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" << "mini2: " << mini2[i].first << endl;
+      }
+    }
+    cout << "set1 size() = " << set1.size() << " \t";
+    cout << "set2 size() = " << set2.size() << endl;
+
+    cout << "mini1 size() = " << mini1.size() << " \t";
+    cout << "mini2 size() = " << mini2.size() << endl;;
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
     for(int i = 0; i < set1.size(); i++){
-      seeds.insert(make_tuple(set1[i], set2[i], k));
+      if(i < set2.size()){
+	//	cout << "inserted seed" << endl;
+	seeds.insert(make_tuple(set1[i], set2[i], k));
+      }
     }
-
+    cout << "seeds size: " << seeds.size() << endl;
     auto bo = bwt_to_int_tuples(index, index2, seeds);
     Ipairs = returnMemTuplesToIntervals(bo, false);
       
@@ -392,13 +438,15 @@ int main(int argc, char *argv[]){
   auto chains = chaining(Ipairs, text2.size());
   chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
   printf("chains took %ld seconds\n", chrono::duration_cast<chrono::seconds>(chains_end - chains_begin).count());  
-  auto chainints = chainingOutput(chains, Ipairs).first;
+  auto chainints = chainingOutput(chains, Ipairs, text, text2).first;
   for(int i = 0; i < chainints.size(); i++){
     int a = chainints[i].forward.left;
     int b = chainints[i].reverse.left;
+    
     int d = chainints[i].forward.right - a+1;
-    cout << text.substr(a,d) << ",\t" << text2.substr(b,d) << endl;
+    //  cout << text.substr(a,d) << ",\t" << text2.substr(b,d) << endl;
   }
+  return 0;
   auto absent = absentIntervals(chainints, index, index2);
   
   vector<pair<Interval_pair, int>> absentEdits;

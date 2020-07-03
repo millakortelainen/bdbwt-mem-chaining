@@ -152,26 +152,43 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   {
 #pragma omp section
     {
+      if(pr.first.forward.right > idxT.size()-1 || pr.first.reverse.right > idxT.size()-1){
+
+      }else{
       for(auto a : enumerateLeft(idxS,pr.first)){
 	auto sea = idxS.left_extend(pr.first,a);
+	//	cout << sea.toString();
+	if(sea.forward.right > idxS.size()-1 || sea.reverse.right > idxS.size()-1){
+	  continue;
+	}
+	//cout << "f" << a << endl;
 	for(auto b : enumerateRight(idxS,sea)){
+	  //cout << "s" << b << endl;
 	  A.push_back(make_pair(a,b));
 	  if(verboseSubroutine) cout << "A: " << a << ", " << b << "\n";
 	}
       }
+      }
     }
 #pragma omp section
     {
+      if(pr.second.forward.right > idxT.size()-1 || pr.second.reverse.right > idxT.size()-1){
+	//	continue;
+      }else{
       for(auto c : enumerateLeft(idxT,pr.second)){
 	auto sea = idxT.left_extend(pr.second,c);
+	if(sea.forward.right > idxT.size()-1 || sea.reverse.right > idxT.size()-1){
+	  continue;
+	}
 	for(auto d : enumerateRight(idxT,sea)){
 	  B.push_back(make_pair(c,d));
 	  if(verboseSubroutine) cout << "B: " << c << ", " << d << "\n";
 	}
       }
     }
+    }
+    
   }
-  
   std::vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross;
   uint8_t a,b,c,d;
   if(naiveCrossProduct){ //Set naiveCrossProduct to true to enable naive cross-product calculation (mainly for debugging).
@@ -196,6 +213,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   for(int k = 0; k < cross.size(); k++){
     tie(a,b,c,d) = cross[k];
     //cout << a << ", " << b << ", " << c << ", " << d << ", " << endl;
+    //    verboseSubroutine = true;
     Interval_pair i_1 = idxS.left_extend(pr.first,a);
     if(verboseSubroutine) cout << "Extended interval " << pr.first.toString() << " to the left with " << a << " and got: " << i_1.toString() << "\n";
     
@@ -207,14 +225,14 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     
     Interval_pair i_4 = idxT.right_extend(i_3,d);
     if(verboseSubroutine) cout << "Extended interval " << i_3.toString() << " to the right with " << d << " and got: " << i_4.toString() << "\n";
-
-    else{
+    //    verboseSubroutine = false;
+    //else{
       for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
 	for(int j = i_4.forward.left; j <= i_4.forward.right; j++){
 	  ret.push_back(make_tuple(i,j,depth));
 	  if(verboseSubroutine) cout <<"[" <<omp_get_thread_num()<<"]" << "pushed result of: (" << i << ", " << j << ", " << depth << ")" << "from interval" << i_2.toString() << "\n";
 	}
-      }
+	//}
     }
   }
   return ret;
@@ -235,18 +253,15 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   int itrl1Size = idxS.size()-1;
   int itrl2Size = idxT.size()-1;
   int maxDepth = -1;
-  if(seed.size() == 1){
+  cout << "begin bwt_mem2" << endl;
+  if(seed.size() <= 1){
     S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
   }else{
-    S.swap(seed);
+    S = seed;
   }
   while(!S.empty()){
-    // if(!processed.insert(*S.begin()).second){
-    //   cout << "already processed." << endl;
-    //   S.erase(S.begin());
-    //   continue;
-    // }
     tie(ip0,ip1,depth) = *S.begin();
+    
     if(depth > maxDepth && depth % 5 == 0){
       maxDepth = depth;
     }
@@ -255,6 +270,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       continue;
     }
+
     if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
        (enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))  ||
        (enumerateLeft(idxS, ip0).size()==1 && enumerateLeft(idxS, ip0)[0] == BD_BWT_index<>::END)){ //Handle END symbols
@@ -271,20 +287,24 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       }
       I.insert(make_pair(i1,i2));
     }else{
+      //      cout << "Sigma";
       auto Sigma = enumerateLeft(idxS,ip0);
       for(auto c : Sigma){
 	//cout << "sigma" << endl;
 	//	uint8_t cp = c;
-	Interval_pair i1 = idxS.left_extend(ip0,c);
-	Interval_pair i2 = idxT.left_extend(ip1,c);
 	if(c == BD_BWT_index<>::END){
 	  continue;
 	}
+	
+	Interval_pair i1 = idxS.left_extend(ip0,c);
+	Interval_pair i2 = idxT.left_extend(ip1,c);
+
 	if(i1.forward.left < 0 || i2.forward.left < 0){ //left_extend() returns [-1,-2] interval if extending with character c is not possible.
 	  continue; //no need to bother with invalid index
 	}
 	I.insert(make_pair(i1,i2));
       }
+      //      cout << "..End Sigma" << endl;
     }
     pair<Interval_pair,Interval_pair> x;
     
@@ -310,10 +330,9 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
 
       }
     }
-
     ip0 = x.first;
     ip1 = x.second;
-    
+    //cout << ip0.toString() << ip1.toString() << endl;
     if(I.size() == 0){
       if(verboseI) cout << "\t" << "No values in I" << "\n";
     }
@@ -325,6 +344,13 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       }
       else{
 	for(auto y : I){
+	  // cout << "a" << endl;
+	  if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
+	    continue;
+	  }
+	  if(y.first.reverse.right > idxS.size()-1 || y.second.reverse.right > idxT.size()-1){
+	    continue;
+	  }
 	  if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
 	     (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
 	     (enumerateRight(idxS, y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
@@ -336,13 +362,22 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
     }
     //Have to take into the special case where we it is impossible to extend in one direction, but other direction might still have valid extensions left. If left side doesn't have any valid extensions, it will get filtered out on the next iteration before pushing anything into the stack. Only checking for enumerateLeft() could result in case where left side only has one possible extending character, and would not be reliable here.
     //std::vector<uint8_t> e1 = enumerateRight(idxS, x.first);
+    // cout << "b" << endl;
+    if(x.first.forward.right > idxS.size()-1 || x.second.forward.right > idxT.size()-1){
+      continue;
+    }
+    if(x.first.reverse.right > idxS.size()-1 || x.second.reverse.right > idxT.size()-1){
+      continue;
+    }
     if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) ||
        (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second)) ||
        (enumerateRight(idxS, x.first).size()==1 && enumerateRight(idxS, x.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
-
+      //cout << "c" << endl;
       S.insert(make_tuple(x.first,x.second, depth+1));
     }
+    //cout << ip0.toString() << ip1.toString() << endl;
   }
+  cout << "done mem 1 " << endl;
   for(auto p : processed){
     Interval_pair i1,i2;
     int d;
@@ -382,7 +417,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       continue;
     }
     if(verboseSubroutine) cout << "Enter subroutine with depth: " << p.second << "\n";
-
+    //cout << p.first.first.toString() << p.first.second.toString() <<endl;
     auto rettemp = bwt_mem2_subroutine(idxS,idxT,p.first,p.second);
     rettempThreadContainer[omp_get_thread_num()].insert(rettempThreadContainer[omp_get_thread_num()].end(), rettemp.begin(), rettemp.end());
     for(auto rt : rettemp){
@@ -392,6 +427,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   for(auto i : rettempThreadContainer){
     ret.insert(ret.end(), i.begin(), i.end());
   }
+  cout << "return sub";
   return ret;
 }
 	       
