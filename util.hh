@@ -306,7 +306,7 @@ pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int
     Obsolete outside of naive output and pretty print
 */
 vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
-  cout << idxS.size()-1 << " <- size()" << endl;
+  //  cout << idxS.size()-1 << " <- size()" << endl;
   vector<int> retSA (idxS.size(),-1);
   vector<int> retISA(idxS.size(),-1);
   
@@ -318,7 +318,7 @@ vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
   ISA[idxS.size()-1] = lfS.second;
   int currIndex = lfS.first[lfS.second];
   int k = 0;
-  cout << "while" << endl;
+  //cout << "while" << endl;
   while(k < idxS.size()){
     retSA.at(currIndex) = idxS.size()-k-1;
     retISA.at(idxS.size()-k-1) = currIndex;

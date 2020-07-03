@@ -205,7 +205,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<
 int main(int argc, char *argv[]){
   string text;
   string text2;
-  switch(4){
+  switch(0){
   case 0: {
     if(argc > 4){
       auto fileinput = readInputFromFasta(argv[3]);
@@ -312,7 +312,7 @@ int main(int argc, char *argv[]){
     Ipairs = returnMemTuplesToIntervals(minimems, false);
     break;}
   case 2: { //hybrid
-    pretty_print_all(index, text);  pretty_print_all(index2, text2);
+    //    pretty_print_all(index, text);  pretty_print_all(index2, text2);
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
 #pragma opm parallel sections
@@ -334,12 +334,12 @@ int main(int argc, char *argv[]){
     //    cout << "muts size: " << muts.size();
     mini1 = muts.first;
     mini2 = muts.second;
-    cout << endl;
-    for(int i = 0; i < mini1.size(); i++){
-      cout << "muts mini1: " << mini1[i].first << "("<<mini1[i].second<<")"<< " muts mini2: " << mini2[i].first << "("<<mini2[i].second<<")"<<endl;
-    }
+    // cout << endl;
+    // for(int i = 0; i < mini1.size(); i++){
+    //   cout << "muts mini1: " << mini1[i].first << "("<<mini1[i].second<<")"<< " muts mini2: " << mini2[i].first << "("<<mini2[i].second<<")"<<endl;
+    // }
     
-    cout << "muts done" << endl;
+    // cout << "muts done" << endl;
     int k = minimumDepth;
     int q = 1;
     vector<Interval_pair> set1;
@@ -369,25 +369,25 @@ int main(int argc, char *argv[]){
     {
 #pragma opm section
       {
-	auto plcp1 = createPLCP(index, q, text, true, SA1, true); //index, q, text, make_lcp
-	auto b1 = partitioning(k, index, plcp1); //k, index, plcp
+	//auto plcp1 = createPLCP(index, q, text, true, SA1, true); //index, q, text, make_lcp
+	//auto b1 = partitioning(k, index, plcp1); //k, index, plcp
 	
-	string textr = string(text.rbegin(), text.rend());
-	auto plcp2 = createPLCP(index, q, textr, true, SA2, true);
-	auto b2 = partitioning(k, index, plcp2);
+	//string textr = string(text.rbegin(), text.rend());
+	//auto plcp2 = createPLCP(index, q, textr, true, SA2, false);
+	//	auto b2 = partitioning(k, index, plcp2);
 
-	set1 = minimizerToBWTInterval(b1,b2, mini1, SA1,SA2, text);
+	set1 = minimizerToBWTIntervalV2(mini1, SA1,SA2, index,text);
       }
 #pragma opm section
       {
-	auto plcp3 = createPLCP(index2, q, text2, true, SA3, true); //index, q, text, make_lcp
-	auto b3 = partitioning(k, index2, plcp3); //k, index, plcp
+	// auto plcp3 = createPLCP(index2, q, text2, true, SA3, true); //index, q, text, make_lcp
+	// auto b3 = partitioning(k, index2, plcp3); //k, index, plcp
 	
-	string text2r = string(text2.rbegin(), text2.rend());
-	auto plcp4 = createPLCP(index2, q, text2r, true, SA4, true);
-	auto b4 = partitioning(k, index2, plcp4);
+	// string text2r = string(text2.rbegin(), text2.rend());
+	// auto plcp4 = createPLCP(index2, q, text2r, true, SA4, false);
+	// auto b4 = partitioning(k, index2, plcp4);
 
-	set2 = minimizerToBWTInterval(b3,b4, mini2, SA3,SA4, text2);
+	set2 = minimizerToBWTIntervalV2(mini2, SA3,SA4,index, text2);
       }
     }
     // for(int i = 0; i < set1.size(); i++){
@@ -395,23 +395,23 @@ int main(int argc, char *argv[]){
     // }
     // sort(set1.begin(), set1.end(), intervalSort);
     // sort(set2.begin(), set2.end(), intervalSort);
-    cout << endl;
-    for(int i = 0; i < set2.size(); i++){
-      if(i > set1.size()-1){
-	int b = SA3.at(set2[i].forward.left).first-1;
-	cout << "\t\t Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" <<endl;
-      }else{
-	int a = SA1.at(set1[i].forward.left+1).first;
-	int b = SA3.at(set2[i].forward.left+1).first;
-	cout << "from Set1: " << text.substr(a,k)  << "["<< a << "," << a+k-1 <<"]"<< "mini1: " << mini1[i].first <<
-	  "\t from Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" << "mini2: " << mini2[i].first << endl;
-      }
-    }
-    cout << "set1 size() = " << set1.size() << " \t";
-    cout << "set2 size() = " << set2.size() << endl;
+    // cout << endl;
+    // for(int i = 0; i < set2.size(); i++){
+    //   if(i > set1.size()-1){
+    // 	int b = SA3.at(set2[i].forward.left).first-1;
+    // 	cout << "\t\t Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" <<endl;
+    //   }else{
+    // 	int a = SA1.at(set1[i].forward.left-1).first;
+    // 	int b = SA3.at(set2[i].forward.left-1).first;
+    // 	cout << "from Set1: " << text.substr(a,k)  << "["<< a << "," << a+k-1 <<"]"<< "mini1: " << mini1[i].first <<
+    // 	  "\t from Set2: " << text2.substr(b,k) << "["<< b << "," << b+k-1 <<"]" << "mini2: " << mini2[i].first << endl;
+    //   }
+    // }
+    // cout << "set1 size() = " << set1.size() << " \t";
+    // cout << "set2 size() = " << set2.size() << endl;
 
-    cout << "mini1 size() = " << mini1.size() << " \t";
-    cout << "mini2 size() = " << mini2.size() << endl;;
+    // cout << "mini1 size() = " << mini1.size() << " \t";
+    // cout << "mini2 size() = " << mini2.size() << endl;;
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
     for(int i = 0; i < set1.size(); i++){
       if(i < set2.size()){
