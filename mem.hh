@@ -12,13 +12,12 @@
 #include <bits/stdc++.h>
 #include <future>
 #include "util.hh"
-//#include "rsa1d.hh"
+#include "rsa1d.hh"
 #include "rsa2d.hh"
 #include <omp.h>
 
-int minimumDepth = 1;
 using namespace std;
-
+  
 bool verboseEnumeration = false;
 bool verboseSigma = false;
 bool verboseI = false;
@@ -28,12 +27,69 @@ bool verboseElement = false;
 bool verboseChaining = false;
 bool naiveCrossProduct = false;
 
+int minimumDepth = 1;
+
+/** Setting up for, and processing MEM's via BDBWT computation. 
+Takes the two BWT indices as an input, and optionally a vector containing interval tuple of seeds.
+The seeds are primarily meant for the hybrid computation mode, but other use for it could also be found.
+*/
+vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2, set<tuple<Interval_pair,Interval_pair,int>> seeds);
+/** Main driver for finding MEM-matches with bi-directional BWT index.
+*/
+vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel, set<tuple<Interval_pair,Interval_pair,int>> seed);
+/** Subroutine called from bwt_mem2, extends the given interval to the left, and right for all valid combinations gained from cross_product.
+Returns location tuples for positions where a MEM match can be confirmed to be in.
+*/
+vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index<> idxT, pair<Interval_pair,Interval_pair> pr, int depth);
+
+/** Translating bwt-mem tuples into tuples corresponding to the locations in the original texts.
+ */
+vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, bool verbose);
+/** Subroutine of batchOuput.
+ */
+vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt);
+
+/** Chaining function implements the chaining algorithm as defined in the paper "Chaining with Overlaps Revisited".
+The algorithm chains together all MEM matches given as input, and finds the best chaining alignment such that the chains do not themselves, while allowing overlaps on the text
+*/
+vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size);
+
+/** Output function for the chains.
+ */
+pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs, string text, string text2);
+
+
 /** Enumerates the unique characters on the forward index of the BWT.
     param idx BD_BWT_index<> Burrows-wheeler transform
     param ip Interval_pair range to find the unique characters in.
     return std::vector<uint8_t> array containing each unique character.
 */
-std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
+vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip);
+/** Analogously to enumerateLeft 
+*/
+vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip);
+
+/** More efficient implementation for cross-product 
+*/
+vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t,uint8_t>> A, vector<pair<uint8_t,uint8_t>> B);
+
+
+void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1, string text2,bool verbose);
+
+
+
+
+
+
+
+
+
+/** Enumerates the unique characters on the forward index of the BWT.
+    param idx BD_BWT_index<> Burrows-wheeler transform
+    param ip Interval_pair range to find the unique characters in.
+    return std::vector<uint8_t> array containing each unique character.
+*/
+vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
   vector<uint8_t> ret;
   if(ip.forward.left > idx.size() || ip.forward.right > idx.size()){
     return ret;
@@ -52,7 +108,7 @@ std::vector<uint8_t> enumerateLeft(BD_BWT_index<> idx, Interval_pair ip){
     param ip Interval_pair range to find the unique characters in.
     return std::vector<uint8_t> array containing each unique character.
 */
-std::vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
+vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
   vector<uint8_t> ret;
 
   if(ip.reverse.left > idx.size() || ip.reverse.right > idx.size()){
@@ -443,7 +499,7 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
       struct occStruct temp;      
       temp.first = i;
       temp.second = j-1;
-      translate.push_back(temp);
+      translate.push_back(temp);	
     }
     i = LFindex[i];
   }
@@ -608,4 +664,194 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   if(verboseChaining) cout << "end2 \n";
   return C_p;
 }
+
+void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, string text1 = "", string text2 = "",bool verbose = false){
+  auto retSA = buildSAfromBWT(index, true); //RetSA builds SA array for the given text from it's BWT transform without having to use the extra space from permutating whole original text.
+  auto retSA2 = buildSAfromBWT(index2, true);
+
+  //Naive returning of the intervals
+  for(auto a : memVector){
+    int i, j, depth;
+    tie(i,j,depth) = a;
+    int begin_i= retSA[i].first+1;
+    int begin_j= retSA2[j].first+1;
+    
+    //Handling the specific special case when SA^S[i] = text.size(); We use index.size()-1 instead so wouldn't need to keep the text in memory at all.
+    if(begin_i >= index.size()-1){
+      begin_i = index.size()-retSA[i].first-1; //Index.size() will always be text.size()+1 due to the added END marker. Furthermore, we need to minus one to get proper offset from general case of begin_i = retSA[i]+1;
+    }
+    //Handling the specific special case when SA^T[j] = text2.size(); We use index2.size()-1 instead so wouldn't need to keep the text in memory at all.
+    if(begin_j >= index2.size()-1){
+      begin_j = index2.size()-retSA2[j].first-1; //Analogously to above. 
+    }
+    int end_i = begin_i+depth-1;
+    int end_j = begin_j+depth-1;
+    
+    cout << "Given tuple (i,j,d): "<< "(" << i << ","<<j <<"," << depth << ")" << "\n";
+    
+    cout << "S: ["<< begin_i <<","<< end_i <<"]" << "-->\t";
+    if(text1.size() > 1 && verbose){
+      for(int b = begin_i; b <= end_i; b++){
+	cout << text1[b]; //For verificiation of results
+      }
+      cout << "\n";
+    }
+    if(text2.size() > 1 && verbose){
+      cout << "T: ["<< begin_j <<","<< end_j <<"]" << "-->\t";
+      for(int b = begin_j; b <= end_j; b++){
+	cout << text2[b]; //For verification of results
+      }
+      cout << "\n";
+    }
+  }
+}
+vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, bool verbose = false){
+  std::vector<struct occStruct> Ipairs;
+  std::vector<struct occStruct> Ipairs2;
+  std::vector<bool> marked1(index.size(),false);
+  std::vector<bool> marked2(index2.size(),false);
+  vector<tuple<int,int,int>> retVector;
+  int p = 0;
+  
+  for(auto m : memVector){
+    struct occStruct newOcc;
+    struct occStruct newOcc2;
+    int i,j,d;
+    tie(i,j,d) = m;
+    
+    newOcc.first  = i;
+    newOcc2.first = j;
+    newOcc.second  = p;
+    newOcc2.second = p;
+    p++;
+    
+    marked1[i] = true;
+    marked2[j] = true;
+    Ipairs.push_back(newOcc);
+    Ipairs2.push_back(newOcc2);
+  }
+  
+  auto bl1 = batchLocate(Ipairs,marked1,index);
+  auto bl2 = batchLocate(Ipairs2,marked2,index2);
+  int maxkey = -1;
+  for(int k = 0; k < memVector.size(); k++){
+    int i,j,d;
+    tie(i,j,d) = memVector[bl1[k].second];
+    int ik = bl1[k].first+1;
+    int jk = bl2[k].first+1;
+    if(ik+1 >= index.size()-1){ //Special case when interval begins at the beginning, SA[i]=text.size()
+      ik = index.size()-ik;
+    }
+    if(jk+1 >= index2.size()-1){ //Special case when interval begins at the beginning, SA[i]=text.size()
+      jk = index2.size()-jk;
+    }
+    retVector.push_back(make_tuple(ik, jk, d));
+  }
+
+  if(verbose){
+    for(auto k : retVector){
+      int i,j,d;
+      tie(i,j,d) = k;
+      cout << "triple: (" << i <<","<< j <<","<< d <<")\n";
+    }
+  }
+  return retVector;
+}
+pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs, string text, string text2){
+  int maxIndex = 0;
+  int maxVal = 0;
+  for(int i = 0; i < chains.size(); i++){
+    int tempVal = chains[i].first;
+    if(tempVal > maxVal){
+      maxVal = tempVal;
+      maxIndex = i;
+    }
+  }
+  if(false){ //printing raw chains
+    for(int i = 0; i < chains.size(); i++){
+      cout <<"Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
+    }
+  }
+  vector<Interval_pair> chainIntervals;
+  vector<int> symcov;
+  chainIntervals.push_back(Ipairs.at(chains.at(maxIndex).second.second)); //pushing first chain where we begin the traceback.
+  symcov.push_back(chains.at(maxIndex).first);
+  int last = -1;
+  int i = chains[maxIndex].second.first;
+  for(int j = chains.size()-1; j >= 0; j--){
+    if(i < 0){
+      break;
+    }
+    if(chains.at(i).second.second >= 0){
+      auto I = Ipairs.at(chains.at(i).second.second);
+      if(chainIntervals.size() > 0 && chains.size() > 1 &&
+	 chainIntervals.at(chainIntervals.size()-1).forward.left >= I.forward.left &&
+	 chainIntervals.at(chainIntervals.size()-1).reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
+
+	symcov.push_back(chains.at(i).first);
+	chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
+	last = i;
+	i = chains[i].second.first;
+	if(last == 0){ //would print out same index again => chain is done.
+	  break;
+	}
+      }
+    }
+  }
+  int count = 0;
+  for(auto c : chainIntervals){
+    auto a = c.forward;
+    auto b = c.reverse;
+    int d = c.forward.right - c.forward.left+1;
+    cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
+    //    cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
+    count++;
+  }
+  return (make_pair(chainIntervals, symcov));
+}
+//set<tuple<Interval_pair,Interval_pair,int>> seeds;
+vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2, set<tuple<Interval_pair,Interval_pair,int>> seeds = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
+  vector<tuple<int,int,int>> mems;
+  bool threadedBWT = true;
+  if(threadedBWT){
+    set<tuple<int,int,int>> memFilter;
+    cout << "finding mems between indexes...";
+    auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
+    if(enumLeft.at(0) == BD_BWT_index<>::END){
+      enumLeft.erase(enumLeft.begin());
+    }
+    vector<vector<tuple<int,int,int>>> memThreads(omp_get_max_threads());
+    for(auto i : enumLeft){
+      cout << i << endl;
+    }
+#pragma omp parallel for
+    for(int i = 0; i < enumLeft.size(); i++){
+      auto retMem = bwt_mem2(index, index2, enumLeft.at(i), seeds);
+      memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
+    }
+    cout << "done finding mems in threads, collapsing";
+    for(auto a : memThreads){
+      for(auto b : a){
+	memFilter.insert(b);
+      }
+    }
+    mems.insert(mems.end(), memFilter.begin(), memFilter.end());
+  }
+  else{
+    mems = bwt_mem2(index,index2, BD_BWT_index<>::END, seeds);
+  }
+
+  cout << "found mems," << mems.size() << "...";
+  sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
+
+  if(mems.size() == 0){
+    cout << "could not find significiantly large enough MEMS " << endl;
+    return mems;
+  }
+  auto bo = batchOutput(index, index2, mems, false);
+  cout << "batchOutput into SA indices done" << "...";
+  sort(bo.begin(), bo.end(), memSort); //overall Speed increase
+  return bo;
+}
+
 #endif

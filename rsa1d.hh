@@ -60,6 +60,8 @@ public:
     }
     return -1;
   }
+  /** Finds the integer corresponding to the hash-map, or the closest corresponding integer in the case that the desired value does not exist in the hash map
+   */
   int hash_back(int i, bool fwd){
     if(i == array.size()-1){
       return i;

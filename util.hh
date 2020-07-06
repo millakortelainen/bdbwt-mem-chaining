@@ -8,6 +8,40 @@
 #include "rsa1d.hh"
 using namespace std;
 
+int suffcmp(struct suffix first, struct suffix last);
+int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2);
+bool pairSort(const pair<int,int> &first, const pair<int,int> &second);
+bool pairSortSecond(const pair<int,int> &first, const pair<int,int> &second);
+bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int,int>> &second);
+bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second);
+bool intervalSort(const Interval_pair &a, const Interval_pair &b);
+bool intervalSortDiff(const Interval_pair &a, const Interval_pair &b);
+vector<struct occStruct> radixSort(vector<struct occStruct> list, int r);
+
+vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup, bool sortIntervals);
+vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs, int size);
+vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2);
+pair<map<int,int>,int> mapLF(BD_BWT_index<>& index, bool forward);
+/* Naive function to build suffix array from input text 
+ */
+int* build_suffix_array(string text);
+/* Building suffix array in space efficient manner directly from BWT.
+ */
+vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA);
+/* Obsolete recursion function for building SA from BWT.
+ */
+pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA, int i);
+
+int chainingMax(int &a, int &b, int &c, int &d);
+vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems);
+
+/* Pretty print for certain informations. Mainly intended as debugging tool.
+ */
+void pretty_print_all(BD_BWT_index<>& index, string text1);
+  
+
+
+
 set<char> alphabet;
 /* BEGIN_STRUCTS */
 struct suffix{
@@ -387,6 +421,4 @@ void pretty_print_all(BD_BWT_index<>& index, string text1){
   }
   cout << separator;
 }
-
-
 #endif

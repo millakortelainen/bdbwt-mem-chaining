@@ -8,26 +8,68 @@
 #include "util.hh"
 #include "sdsl/int_vector.hpp"
 using namespace std;
+/** comparison function to determine the lexicographical order between two k-mers, or minimizers, given as pair<string,int>
+ */
+bool mimCompare (pair<string,int> first, pair<string,int> second);
+/**  Computes all minimizers for input string t1. The computation is done by adding w k-mers into a bucket inheretently sorted by the set datastructure in cpp.
+ For each window w, the lexicographically smallest k-mer is then selected as the minimizer.
+*/
+vector<pair<string,int>> minimizers(string t1, int k, int w);
+/** Naive-ish way of computing which minimizers appear in both strings
+ */
+pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<pair<string,int>> m1, vector<pair<string,int>> m2);
+/**  Translating minimizers into tuples tuple<i,j,d>, where:
+ i = starting location of minimizer on text 1
+ j = starting location of minimizer on text 2
+ d = depth, or length of the minimizers.
+*/
+pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<string,int>> > > minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2);
+/** Naive implementation to extend mutual minimizers left and right to obtain MEM match.
+ */
+vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, string text, string text2);
+/** Efficient computation of Permuted LCP array using BWT index and suffix array datastructures. As defined in paper "Permuted Longest-Common-Prefix Array"
+ */
+pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string t, bool lcp, vector<pair<int,int>> SA, bool direction);
+/** Converting PLCP into LCP in linear time 
+ */
+vector<int> createLCPFromPLCP(vector<int> PLCP, vector<pair<int,int>> SA);
+/** Creating an partition bitvector, such that B[i] = 1, iff: LCP[i] < k
+ */
+sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,vector<int>> PLCPLCP);
+/** Using Suffix Array indexes to compute BWT intervals from minimizers, thus allowing use of BDBWT to finalize MEM matching.
+ */
+vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, string text);
+/** Using Suffix Array indexes to compute BWT intervals from minimizers, thus allowing use of BDBWT to finalize MEM matching. Unused, left for completeness. Implementation contains issues on correctness of results.
+ */
+vector<Interval_pair> minimizerToBWTInterval(sdsl::int_vector<1> bv, sdsl::int_vector<1> bvr, vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, string text);
+
+
 struct mimsort {
   bool operator() (const pair<string,int>& first, const pair<string,int>& second) const{
     return first.first < second.first;
   }
 };
+
+
 bool mimCompare (pair<string,int> first, pair<string,int> second){
   return first.first < second.first;
 }
 
 
 vector<pair<string,int>> minimizers(string t1, int k, int w){
+  //  cout << "enter minimizer";
   vector<set<pair<string,int>,mimsort>> kmers((t1.size()));
   vector<pair<string,int>> ret;
+
   for(int i = 0; i < t1.size()-k; i++){
-    kmers.at(i).insert(make_pair(t1.substr(i,k),i));
+    //inserting k-mers into w buckets, which are kept in lexicographic order.
+    kmers.at((int)(i/w)).insert(make_pair(t1.substr(i,k),i));
+    //    cout << ".";
   }
   for(auto km : kmers){
     if(!km.empty()){
       auto x = *km.begin();
-      //cout << x.first << endl;
+      //    cout << x.first << endl;
       ret.push_back(x);
     }
   }
@@ -82,7 +124,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
       i++;
       //cout << "Comparing: " << x.first << " & " << y.first;
       if(x.first.compare(y.first) == 0){
-	//	m2.erase(m2.begin(), m2.begin()+i);
+	m2.erase(m2.begin()+1);
 	i = 0;
 	auto tup = make_tuple(x.second, y.second, x.first.length());;
 	//cout << "pushed";
@@ -98,7 +140,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
     }
   }
   sort(retTuple.begin(),retTuple.begin(),memSort);
-  return make_pair(retTuple,retRaw);;
+  return make_pair(retTuple,retRaw);
 }
 vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, string text, string text2){
   set<tuple<int,int,int>> miniMemsSet;
@@ -210,24 +252,24 @@ sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,v
   }
   return B;
 }
-vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, string text = ""){
+vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini,int minimumDepth, vector<pair<int,int>> SA, vector<pair<int,int>> SAr, std::vector<int64_t> gc_arr, string text = ""){
   vector<Interval_pair> P;
-  auto C = index.get_global_c_array();
-  //  unordered_set<int> stored;
+  auto C = gc_arr;
+  unordered_set<int> stored;
   string text2 = string(text.rbegin(), text.rend());
   for(int j = 0; j < mini.size(); j++){
-    
+    //    cout << "C[j] = " << C[mini[j].first.at(0)] << ", " << mini[j].first.at(0) << endl;
     /* This can be optimized */
     string revmini = string(mini[j].first.rbegin(), mini[j].first.rend());
     auto a = C[mini[j].first.at(0)];
     if(a > 0){
       a--;
     }
-    while(text.substr(SA[a].first,3).compare(mini[j].first) != 0 && a < text.size()-3){
+    while(text.substr(SA[a].first,minimumDepth).compare(mini[j].first) != 0 && a < text.size()-minimumDepth){
       a++;
     }
     auto b = a;
-    while(text.substr(SA[b].first,3).compare(mini[j].first) == 0 && b < text.size()-3){
+    while(text.substr(SA[b].first,minimumDepth).compare(mini[j].first) == 0 && b < text.size()-minimumDepth){
       b++;
     }
 				      
@@ -235,18 +277,19 @@ vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini, ve
     if(c > 0){
       c--;
     }
-    while(text2.substr(SAr[c].first,3).compare(revmini) != 0 && c < text2.size()-3){
+    while(text2.substr(SAr[c].first,minimumDepth).compare(revmini) != 0 && c < text2.size()-minimumDepth){
       c++;
     }
 
     auto d = c;
-    while(text2.substr(SAr[d].first,3).compare(revmini) == 0 && d < text2.size()-3){
+    while(text2.substr(SAr[d].first,minimumDepth).compare(revmini) == 0 && d < text2.size()-minimumDepth){
       d++;
     }
-    //    if((P.size() == 0) || stored.count(a) == 0) {
-    P.push_back(Interval_pair(a,b-1,c,d-1));
-      // stored.insert(a);
-      // }
+    if((P.size() == 0) || stored.count(a) == 0) {
+      P.push_back(Interval_pair(a,b-1,c,d-1));
+      //      cout << Interval_pair(a,b-1,c,d-1).toString() << endl;
+      stored.insert(a);
+    }
   }
   cout << "return p";
   return P;
@@ -368,55 +411,5 @@ vector<Interval_pair> minimizerToBWTInterval(sdsl::int_vector<1> bv, sdsl::int_v
   }
   return P;
 }
-
-// vector<struct occStruct> locateReverseSuffixes(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt){
-//   int i = 0;
-//   int n = bwt.size();
-//   vector<struct occStruct> translate;
-//   vector<struct occStruct> ret;
-//   auto LFindex = mapLF(bwt).first;
-  
-//   for(int j = n; j > 0; j--){
-//     if(marked[i]){
-//       struct occStruct temp;      
-//       temp.first = i;
-//       temp.second = j-1;
-//       translate.push_back(temp);
-//     }
-//     i = LFindex[i];
-//   }
-  
-//   #pragma omp parallel sections
-//   {
-//     #pragma omp section
-//     {
-//       translate = radixSort(translate, 2);
-//     }
-//     #pragma omp section
-//     {
-//       pairs = radixSort(pairs,2);
-//     }
-//   }
-
-//   int x = 0;
-//   int y = 0;
-//   while(x < pairs.size()){
-//     auto a = pairs[x];
-//     if(a.first == translate[y].first){
-//       struct occStruct temp;
-//       temp.first = translate[y].second;
-//       temp.second = a.second;
-//       ret.push_back(temp);
-//       x++;
-//     }else{
-//       if(y == translate.size()-1){
-// 	y = 0;
-//       }else{
-// 	y++;
-//       }
-//     }
-//   }
-//   return ret;
-// }
 
 #endif
