@@ -109,7 +109,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
     for(int i = 0; i < set1.size(); i++){
       if(i < set2.size()){
-	cout << set1[i].toString() << endl;
+	//	cout << set1[i].toString() << endl;
 	seeds.insert(make_tuple(set1[i], set2[i], k));
       }
     }

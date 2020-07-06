@@ -124,7 +124,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
       i++;
       //cout << "Comparing: " << x.first << " & " << y.first;
       if(x.first.compare(y.first) == 0){
-	m2.erase(m2.begin()+1);
+	//	m2.erase(m2.begin()+1);
 	i = 0;
 	auto tup = make_tuple(x.second, y.second, x.first.length());;
 	//cout << "pushed";
@@ -286,7 +286,7 @@ vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini,int
       d++;
     }
     if((P.size() == 0) || stored.count(a) == 0) {
-      P.push_back(Interval_pair(a,b-1,c,d-1));
+      P.push_back(Interval_pair(a,b,c,d));
       //      cout << Interval_pair(a,b-1,c,d-1).toString() << endl;
       stored.insert(a);
     }
