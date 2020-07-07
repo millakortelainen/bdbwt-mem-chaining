@@ -74,7 +74,7 @@ vector<pair<string,int>> minimizers(string t1, int k, int w){
     }
   }
   cout << "found " << ret.size() << " minimizers" << endl;
-  //  sort(ret.begin(), ret.end(), minimizerLexSort);
+  sort(ret.begin(), ret.end(), minimizerLexSort);
   return ret;
 }
 
@@ -115,8 +115,8 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   auto muts = mutualMinimizers(m1,m2);
   m1 = muts.first;
   m2 = muts.second;
-  //sort(m1.begin(), m1.end(), mimCompare);
-  //sort(m2.begin(), m2.end(), mimCompare);
+  sort(m1.begin(), m1.end(), mimCompare);
+  sort(m2.begin(), m2.end(), mimCompare);
   //cout << "sorted minimems" << endl;
   for(auto x : m1){
     int i = 0;
@@ -124,7 +124,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
       i++;
       //cout << "Comparing: " << x.first << " & " << y.first;
       if(x.first.compare(y.first) == 0){
-	//	m2.erase(m2.begin()+1);
+	m2.erase(m2.begin(), m2.begin()+i);
 	i = 0;
 	auto tup = make_tuple(x.second, y.second, x.first.length());;
 	//cout << "pushed";
