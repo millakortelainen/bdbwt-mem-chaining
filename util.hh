@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <cmath>
 #include "rsa1d.hh"
+#include "edlib.h"
 using namespace std;
 
 int suffcmp(struct suffix first, struct suffix last);
@@ -51,6 +52,21 @@ struct suffix{
 struct occStruct{
   int first;
   int second;
+};
+struct Configuration {
+  int mode;
+  std::string text1;
+  std::string text2;
+  BD_BWT_index<> index1;
+  BD_BWT_index<> index2;
+
+  int minimumDepth;
+  int minimizerWindowSize;
+  int PLCPSparsity_q = 1;
+  int maxSize = (index1.size() > index2.size())? index1.size() : index2.size();
+  EdlibAlignConfig edlibConf;
+  int originalEditDistance = -1;
+  
 };
 /* END_STRUCTS */
 

@@ -1,22 +1,9 @@
+#ifndef BDBWT_MEM_CHAIN_DRIVER_HH
+#define BDBWT_MEM_CHAIN_DRIVER_HH
 #include "mem.hh"
 #include "minimizer.hh"
 #include "edlib.h"
-enum Mode {BDBWT = 0, MINIMIZER = 1, HYBRID = 2};
-struct Configuration {
-  int mode;
-  std::string text1;
-  std::string text2;
-  BD_BWT_index<> index1;
-  BD_BWT_index<> index2;
-
-  int minimumDepth;
-  int minimizerWindowSize;
-  int PLCPSparsity_q;
-  int maxSize = (index1.size() > index2.size())? index1.size() : index2.size();
-  EdlibAlignConfig edlibConf;
-  int originalEditDistance;
-  
-};
+#include "util.hh"
 using namespace std;
 
 vector<Interval_pair> computeMemIntervals(Configuration conf){
@@ -24,7 +11,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   vector<Interval_pair> Ipairs;
   switch(conf.mode){
   case 0: { //BWT Only
-    auto bo = bwt_to_int_tuples(conf.index1, conf.index2);
+    auto bo = bwt_to_int_tuples(conf);
     Ipairs = returnMemTuplesToIntervals(bo, false);
     break;
   }
@@ -114,7 +101,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     cout << "seeds size: " << seeds.size() << endl;
-    auto bo = bwt_to_int_tuples(conf.index1, conf.index2, seeds);
+    auto bo = bwt_to_int_tuples(conf, seeds);
     Ipairs = returnMemTuplesToIntervals(bo, false);
       
     break;
@@ -207,3 +194,4 @@ vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Confi
   }
   return combinedED;
 }
+#endif

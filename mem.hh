@@ -10,12 +10,11 @@
 #include <tuple>
 #include <stack>
 #include <bits/stdc++.h>
-#include <future>
 #include "util.hh"
 #include "rsa1d.hh"
 #include "rsa2d.hh"
 #include <omp.h>
-
+//#include "driver.hh"
 using namespace std;
   
 bool verboseEnumeration = false;
@@ -33,7 +32,7 @@ int minimumDepth = 1;
 Takes the two BWT indices as an input, and optionally a vector containing interval tuple of seeds.
 The seeds are primarily meant for the hybrid computation mode, but other use for it could also be found.
 */
-vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2, set<tuple<Interval_pair,Interval_pair,int>> seeds);
+vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Interval_pair,Interval_pair,int>> seeds);
 /** Main driver for finding MEM-matches with bi-directional BWT index.
 */
 vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel, set<tuple<Interval_pair,Interval_pair,int>> seed);
@@ -306,7 +305,6 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
-    
     if(depth > maxDepth && depth % 5 == 0){
       maxDepth = depth;
     }
@@ -435,7 +433,6 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   // cout << "minimum depth based on sampling " << dfilter << endl;
   // ret.reserve(collectedSubroutineCalls.size());
   vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
-  
 #pragma omp parallel for
   for(int i = 0; i < collectedSubroutineCalls.size(); i++){
     auto p = collectedSubroutineCalls[i];
@@ -780,7 +777,11 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   return (make_pair(chainIntervals, symcov));
 }
 // Giving seeds an default value so we can easily leave it out if we don't use them.
-vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<> index2, set<tuple<Interval_pair,Interval_pair,int>> seeds = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
+vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Interval_pair,Interval_pair,int>> seeds = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
+  auto index = conf.index1;
+  auto index2 = conf.index2;
+  minimumDepth = conf.minimumDepth;
+  
   vector<tuple<int,int,int>> mems;
   bool threadedBWT = true;
   if(threadedBWT){
@@ -797,6 +798,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(BD_BWT_index<> index, BD_BWT_index<
     if(seeds.size() > 1){
       vector<tuple<Interval_pair,Interval_pair,int>> seedsVector;
       copy(seeds.begin(), seeds.end(), back_inserter(seedsVector));
+      
 #pragma omp parallel for
       for(int i = 0; i < seedsVector.size(); i++){
 	auto retMem = bwt_mem2(index, index2, BD_BWT_index<>::END, seedsVector[i]);
