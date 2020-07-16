@@ -208,32 +208,32 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
     {
       if(pr.first.forward.right > idxT.size()-1 || pr.first.reverse.right > idxT.size()-1){
       }else{
-	for(auto a : enumerateLeft(idxS,pr.first)){
-	  auto sea = idxS.left_extend(pr.first,a);
-	  if(sea.forward.right > idxS.size()-1 || sea.reverse.right > idxS.size()-1){
-	    continue;
-	  }
-	  for(auto b : enumerateRight(idxS,sea)){
-	    A.push_back(make_pair(a,b));
-	    if(verboseSubroutine) cout << "A: " << a << ", " << b << "\n";
-	  }
-	}
+        for(auto a : enumerateLeft(idxS,pr.first)){
+          auto sea = idxS.left_extend(pr.first,a);
+          if(sea.forward.right > idxS.size()-1 || sea.reverse.right > idxS.size()-1){
+            continue;
+          }
+          for(auto b : enumerateRight(idxS,sea)){
+            A.push_back(make_pair(a,b));
+            if(verboseSubroutine) cout << "A: " << a << ", " << b << "\n";
+          }
+        }
       }
     }
 #pragma omp section
     {
       if(pr.second.forward.right > idxT.size()-1 || pr.second.reverse.right > idxT.size()-1){
       }else{
-	for(auto c : enumerateLeft(idxT,pr.second)){
-	  auto sea = idxT.left_extend(pr.second,c);
-	  if(sea.forward.right > idxT.size()-1 || sea.reverse.right > idxT.size()-1){
-	    continue;
-	  }
-	  for(auto d : enumerateRight(idxT,sea)){
-	    B.push_back(make_pair(c,d));
-	    if(verboseSubroutine) cout << "B: " << c << ", " << d << "\n";
-	  }
-	}
+        for(auto c : enumerateLeft(idxT,pr.second)){
+          auto sea = idxT.left_extend(pr.second,c);
+          if(sea.forward.right > idxT.size()-1 || sea.reverse.right > idxT.size()-1){
+            continue;
+          }
+          for(auto d : enumerateRight(idxT,sea)){
+            B.push_back(make_pair(c,d));
+            if(verboseSubroutine) cout << "B: " << c << ", " << d << "\n";
+          }
+        }
       }
     }
     
@@ -297,11 +297,17 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   int itrl1Size = idxS.size()-1;
   int itrl2Size = idxT.size()-1;
   int maxDepth = -1;
-  
+  bool seeded = false;
+  // if(seed.size() == 1){
+  //   S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  // }else{
+  //   S = seed;
+  // }
   if(get<0>(seed).forward.left <= 0){
     S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
   }else{
     S.insert(seed);
+    seeded = true;
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
@@ -309,16 +315,18 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       maxDepth = depth;
     }
     S.erase(S.begin());
-    
+    //cout << "begin "<< ip0.toString() << ip1.toString() << endl;
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       continue;
     }
 
     if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
-       (enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))  ||
+       (enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))||
+       // (enumerateRight(idxS, ip0)!=  enumerateRight(idxT, ip1))||
        (enumerateLeft(idxS, ip0).size()==1 && enumerateLeft(idxS, ip0)[0] == BD_BWT_index<>::END)){ //Handle END symbols
       if(depth >= minimumDepth){
-	collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
+        //cout << "push sub " << ip0.toString() << endl;
+        collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
       }
     }
     set<pair<Interval_pair,Interval_pair>> I;
@@ -326,88 +334,110 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       Interval_pair i1 = idxS.left_extend(ip0,startLabel);
       Interval_pair i2 = idxT.left_extend(ip1,startLabel);
       if(i1.forward.left < 0 || i2.forward.left < 0){ //left_extend() returns [-1,-2] interval if extending with character c is not possible.
-	continue; //no need to bother with invalid index
+        continue; //no need to bother with invalid index
       }
       I.insert(make_pair(i1,i2));
     }else{
       auto Sigma = enumerateLeft(idxS,ip0);
       for(auto c : Sigma){
-	if(c == BD_BWT_index<>::END){
-	  continue;
-	}
-	Interval_pair i1 = idxS.left_extend(ip0,c);
-	Interval_pair i2 = idxT.left_extend(ip1,c);
-	if(i1.forward.left < 0 || i2.forward.left < 0){ //left_extend() returns [-1,-2] interval if extending with character c is not possible.
-	  continue; //no need to bother with invalid index
-	}
-	I.insert(make_pair(i1,i2));
+        if(c == BD_BWT_index<>::END){
+          //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to left with " << c << endl;
+          continue;
+        }
+        Interval_pair i1 = idxS.left_extend(ip0,c);
+        Interval_pair i2 = idxT.left_extend(ip1,c);
+        if(i1.forward.left < 0 || i2.forward.left < 0){ //left_extend() returns [-1,-2] interval if extending with character c is not possible.
+          //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to left with " << c << endl;
+          continue; //no need to bother with invalid index
+        }
+        I.insert(make_pair(i1,i2));
+      }
+      if(seeded){
+        auto SigmaR = enumerateRight(idxS,ip0);
+        for(auto c : SigmaR){
+          if(c == BD_BWT_index<>::END){
+            //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to right with " << c << endl;
+            continue;
+          }
+          Interval_pair i1 = idxS.right_extend(ip0,c);
+          Interval_pair i2 = idxT.right_extend(ip1,c);
+          if(i1.forward.left < 0 || i2.forward.left < 0){ //right_extend() returns [-1,-2] interval if extending with character c is not possible.
+            //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to right with " << c << endl;
+            continue; //no need to bother with invalid index
+          }
+          I.insert(make_pair(i1,i2));
+        }
       }
     }
-    pair<Interval_pair,Interval_pair> x;
+    // pair<Interval_pair,Interval_pair> x;
     
-    if(I.size() != 0){
-      x = *I.begin(); //Initialize first item for comparison
-    }
-    else{
-      continue;
-    }
-    int xForwardDelta 	= x.first.forward.right - x.first.forward.left;
-    int xForwardDelta2 	= x.second.forward.right - x.second.forward.left;
-    int maxDelta 	= xForwardDelta + xForwardDelta2;
+  //   if(I.size() != 0){
+  //     x = *I.begin(); //Initialize first item for comparison
+  //   }
+  //   else{
+  //     continue;
+  //   }
+  //   int xForwardDelta 	= x.first.forward.right - x.first.forward.left;
+  //   int xForwardDelta2 	= x.second.forward.right - x.second.forward.left;
+  //   int maxDelta 	= xForwardDelta + xForwardDelta2;
 
-    for(auto y : I){
+  //   for(auto y : I){
 
-      int yForwardDelta = y.first.forward.right - y.first.forward.left;
-      int yForwardDelta2= y.second.forward.right - y.second.forward.left;
-      int zDelta 	= yForwardDelta + yForwardDelta2;
+  //     int yForwardDelta = y.first.forward.right - y.first.forward.left;
+  //     int yForwardDelta2= y.second.forward.right - y.second.forward.left;
+  //     int zDelta 	= yForwardDelta + yForwardDelta2;
       
-      if(zDelta > maxDelta){
-	x = y;
-	maxDelta = zDelta;
+  //     if(zDelta > maxDelta){
+	// x = y;
+	// maxDelta = zDelta;
 
-      }
-    }
-    ip0 = x.first;
-    ip1 = x.second;
+  //     }
+  //   }
+    //ip0 = x.first;
+    // ip1 = x.second;
     if(I.size() == 0){
       if(verboseI) cout << "\t" << "No values in I" << "\n";
     }
     else{
-      I.erase(x);
+      //  I.erase(x);
 
-      if(I.size() == 0){
-      }
-      else{
-	for(auto y : I){
-	  if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
-	    continue;
-	  }
-	  if(y.first.reverse.right > idxS.size()-1 || y.second.reverse.right > idxT.size()-1){
-	    continue;
-	  }
-	  if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
-	     (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
-	     (enumerateRight(idxS, y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
+      // if(I.size() == 0){
+      // }
+      // else{
+      // cout << "coming form ->" << ip0.toString() << ip1.toString() << endl;
+      for(auto y : I){
+        //cout << "value in I: " << y.first.toString() << y.second.toString() << endl;
+
+        if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
+          continue;
+        }
+        if(y.first.reverse.right > idxS.size()-1 || y.second.reverse.right > idxT.size()-1){
+          continue;
+        }
+        if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
+           (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
+           ((enumerateLeft(idxS, y.first)  != enumerateLeft(idxT, y.second)) && seeded)  ||
+           (enumerateRight(idxS, y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
 	    
-	    S.insert(make_tuple(y.first,y.second, depth+1));
-	  }
-	}
+          S.insert(make_tuple(y.first,y.second, depth+1));
+        }
       }
     }
+    
     //Have to take into the special case where we it is impossible to extend in one direction, but other direction might still have valid extensions left. If left side doesn't have any valid extensions, it will get filtered out on the next iteration before pushing anything into the stack. Only checking for enumerateLeft() could result in case where left side only has one possible extending character, and would not be reliable here.
     //std::vector<uint8_t> e1 = enumerateRight(idxS, x.first);
     // cout << "b" << endl;
-    if(x.first.forward.right > idxS.size()-1 || x.second.forward.right > idxT.size()-1){
-      continue;
-    }
-    if(x.first.reverse.right > idxS.size()-1 || x.second.reverse.right > idxT.size()-1){
-      continue;
-    }
-    if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) ||
-       (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second)) ||
-       (enumerateRight(idxS, x.first).size()==1 && enumerateRight(idxS, x.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
-      S.insert(make_tuple(x.first,x.second, depth+1));
-    }
+    // if(x.first.forward.right > idxS.size()-1 || x.second.forward.right > idxT.size()-1){
+    //   continue;
+    // }
+    // if(x.first.reverse.right > idxS.size()-1 || x.second.reverse.right > idxT.size()-1){
+    //   continue;
+    // }
+    // if(idxS.is_right_maximal(x.first) || idxT.is_right_maximal(x.second) ||
+    //    (enumerateRight(idxS, x.first) != enumerateRight(idxT, x.second)) ||
+    //    (enumerateRight(idxS, x.first).size()==1 && enumerateRight(idxS, x.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
+    //   S.insert(make_tuple(x.first,x.second, depth+1));
+    // }
   }
 
   if(collectedSubroutineCalls.size() == 0){
@@ -771,7 +801,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
     auto b = c.reverse;
     int d = c.forward.right - c.forward.left+1;
     cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
-    //    cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
+    cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
     count++;
   }
   return (make_pair(chainIntervals, symcov));
@@ -798,24 +828,23 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     if(seeds.size() > 1){
       vector<tuple<Interval_pair,Interval_pair,int>> seedsVector;
       copy(seeds.begin(), seeds.end(), back_inserter(seedsVector));
-      
-#pragma omp parallel for
+      //#pragma omp parallel for
       for(int i = 0; i < seedsVector.size(); i++){
-	auto retMem = bwt_mem2(index, index2, BD_BWT_index<>::END, seedsVector[i]);
-	memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
+         auto retMem = bwt_mem2(index, index2, BD_BWT_index<>::END, seedsVector[i]);
+         memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
       }
     }
     else{
 #pragma omp parallel for
-    for(int i = 0; i < enumLeft.size(); i++){
-      auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
-      memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
-    }
+      for(int i = 0; i < enumLeft.size(); i++){
+        auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+        memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
+      }
     }
     cout << "done finding mems in threads, collapsing";
     for(auto a : memThreads){
       for(auto b : a){
-	memFilter.insert(b);
+        memFilter.insert(b);
       }
     }
     mems.insert(mems.end(), memFilter.begin(), memFilter.end());

@@ -40,64 +40,93 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   case 2: { //hybrid
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
-#pragma opm parallel sections
-    {
-#pragma opm section
-      {
-	mini1 = minimizers(conf.text1, conf.minimumDepth, conf.minimizerWindowSize);
-      }
-#pragma opm section
-      {
-	mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
-      }
-    }
-    auto muts = minimizerTuples(mini1, mini2).second;
-    mini1 = muts.first;
-    mini2 = muts.second;
-    cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
-    int k = conf.minimumDepth;
-    int q = conf.PLCPSparsity_q;
-    vector<Interval_pair> set1;
-    vector<Interval_pair> set2;
     vector<pair<int,int>> SA1, SA2, SA3, SA4;
 #pragma opm parallel sections
     {
 #pragma opm section
       {
-	SA1 = buildSAfromBWT(conf.index1, true);
+        mini1 = minimizers(conf.text1, conf.minimumDepth, conf.minimizerWindowSize);
+	cout << "mini1 done" << endl;
       }
 #pragma opm section
       {
-	SA2 = buildSAfromBWT(conf.index1, false);
+        mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
+	cout << "mini2 done" << endl;
       }
 #pragma opm section
       {
-	SA3 = buildSAfromBWT(conf.index2, true);
+        SA1 = buildSAfromBWT(conf.index1, true);
+	cout << "SA1 done" << endl;
       }
 #pragma opm section
       {
-	SA4 = buildSAfromBWT(conf.index2, false);
+        SA2 = buildSAfromBWT(conf.index1, false);
+	cout << "SA2 done" << endl;
+      }
+#pragma opm section
+      {
+        SA3 = buildSAfromBWT(conf.index2, true);
+	cout << "SA3 done" << endl;
+      }
+#pragma opm section
+      {
+        SA4 = buildSAfromBWT(conf.index2, false);
+	cout << "SA4 done " << endl;
       }
     }
-    cout << "gotSA's" << endl;
+    cout << "getting muts...";
+    auto muts = minimizerTuples(mini1, mini2, true).second;
+    mini1 = muts.first;
+    mini2 = muts.second;
+    cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
+    int k = conf.minimumDepth;
+    int q = conf.PLCPSparsity_q;
+    vector<pair<Interval_pair,string>> set1;
+    vector<pair<Interval_pair,string>> set2;
+
 #pragma opm parallel sections
     {
 #pragma opm section
-      {	
-	set1 = minimizerToBWTIntervalV2(mini1,conf.minimumDepth, SA1, SA2, conf.index1.get_global_c_array(), conf.text1);
+      {
+	bool type = true;
+	if(type){
+	string text2 = string(conf.text1.rbegin(),conf.text1.rend());
+	auto lcp1 = createPLCP(conf.index1, conf.PLCPSparsity_q, conf.text1, true, SA1, true);
+	auto lcp2 = createPLCP(conf.index1, conf.PLCPSparsity_q,      text2, true, SA2, false);
+	auto b1 = partitioning(conf.minimumDepth, conf.index1, lcp1);
+	auto b2 = partitioning(conf.minimumDepth, conf.index1, lcp2);
+	set1 = minimizerToBWTInterval(b1,b2,mini1,SA1,SA2,conf.index1,lcp1,lcp2, conf.text1);
+	}else{
+	//set1 = minimizerToBWTIntervalV2(mini1,conf.minimumDepth, SA1, SA2, conf.index1.get_global_c_array(), conf.text1);
+	}
       }
 #pragma opm section
-      {	
-	set2 = minimizerToBWTIntervalV2(mini2,conf.minimumDepth, SA3, SA4, conf.index2.get_global_c_array(), conf.text2);
+      {
+	bool type = true;
+	if(type){
+	string text2 = string(conf.text2.rbegin(),conf.text2.rend());
+	auto lcp1 = createPLCP(conf.index2, conf.PLCPSparsity_q, conf.text2, true, SA3, true);
+	auto lcp2 = createPLCP(conf.index2, conf.PLCPSparsity_q,      text2, true, SA4, false);
+	auto b1 = partitioning(conf.minimumDepth, conf.index2, lcp1);
+	auto b2 = partitioning(conf.minimumDepth, conf.index2, lcp2);
+	set2 = minimizerToBWTInterval(b1,b2,mini2,SA3,SA4,conf.index2,lcp1,lcp2, conf.text2);
+	}else{
+	//set2 = minimizerToBWTIntervalV2(mini2,conf.minimumDepth, SA3, SA4, conf.index2.get_global_c_array(), conf.text2);
       }
+    }
     }
     cout << "gotBWTIntervals" << endl;
     cout << "set1 size: " << set1.size() << ", set2 size: " << set2.size() << endl;
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
+    //sort(set1.begin(),set1.end(),intervalSort);
+    //sort(set2.begin(),set2.end(),intervalSort);
+    int j = 0;
     for(int i = 0; i < set1.size(); i++){
       if(i < set2.size()){
-	//	cout << set1[i].toString() << endl;
-	seeds.insert(make_tuple(set1[i], set2[i], k));
+        //cout << set1[i].second << set1[i].first.toString() << endl;
+        //cout << set2[i].second << set2[i].first.toString() << endl;
+        //cout << endl;
+        seeds.insert(make_tuple(set1[i].first, set2[i].first, conf.minimumDepth));
       }
     }
     cout << "seeds size: " << seeds.size() << endl;
@@ -134,8 +163,8 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
       ed = absent[i].forward.right - absent[i].forward.left+1;
     }else{
       EdlibAlignResult result = edlibAlign(conf.text1.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
-					   conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
-					   conf.edlibConf);
+                                           conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
+                                           conf.edlibConf);
       ed = result.editDistance;
       edlibFreeAlignResult(result);
     }
@@ -148,8 +177,8 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
     cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
     
     cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
-	 << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
-	 << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
+         << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
+         << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
     
     totalEditDistance += ed;
     absentEdits.push_back(make_pair(absent[i], ed));

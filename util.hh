@@ -312,7 +312,7 @@ pair<map<int,int>,int> mapLF(BD_BWT_index<>& index, bool forward){
     if(lfmapping[i] == 0){
       zeroth_index = i;
     }
-    m[l] += 1;      
+    m[l] += 1;
   }
   return make_pair(lfmapping,zeroth_index);
 }
@@ -350,7 +350,7 @@ pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int
     retSA[currIndex] = idxS.size()-k-1;
     retISA[idxS.size()-k-1] = currIndex;
     return make_pair(retSA, retISA);
-  }  
+  }
 }
 /** Creating SA with use of recursive LF mapping.
     Obsolete outside of naive output and pretty print
@@ -359,17 +359,19 @@ vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
   //  cout << idxS.size()-1 << " <- size()" << endl;
   vector<int> retSA (idxS.size(),-1);
   vector<int> retISA(idxS.size(),-1);
-  
+
   auto lfS = mapLF(idxS, revIndexSA);
   //vector<int64_t> C = idxS.get_global_c_array();
-  vector<int> SA(idxS.size(),-1);
-  vector<int> ISA(idxS.size(),-1);
-  SA[lfS.second] = idxS.size()-1;
-  ISA[idxS.size()-1] = lfS.second;
+  // vector<int> SA(idxS.size(),-1);
+  // vector<int> ISA(idxS.size(),-1);
+  // SA[lfS.second] = idxS.size()-1;
+  // ISA[idxS.size()-1] = lfS.second;
   int currIndex = lfS.first[lfS.second];
   int k = 0;
-  //cout << "while" << endl;
+  //  cout << "index size:" << idxS.size() << endl;
   while(k < idxS.size()){
+    //cout << "currIndex= " << currIndex << endl;
+    //cout<<idxS.forward_bwt_at(currIndex)<<endl;
     retSA.at(currIndex) = idxS.size()-k-1;
     retISA.at(idxS.size()-k-1) = currIndex;
     k++;

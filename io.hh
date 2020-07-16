@@ -68,7 +68,11 @@ Configuration readConfiguration(string filename){
   int index1 = strtol(parse.c_str(),NULL,10);
   cout << "Fasta1: " << filename1 << " [" << index1 << "]" << endl;
   conf.text1 = readInputFromFasta(filename1, index1).at(0);
-  
+  conf.text1 = conf.text1.substr(0,conf.text1.length()-1);
+  cout <<">";
+  cout <<conf.text1.substr(0,30);
+  cout << "..." << endl;
+
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   string filename2 = parse;
@@ -77,7 +81,11 @@ Configuration readConfiguration(string filename){
   int index2 = strtol(parse.c_str(),NULL,10);
   cout << "Fasta2: " << filename2 << " [" << index2 << "]" << endl;
   conf.text2 = readInputFromFasta(filename2, index2).at(0);
-
+  conf.text2 = conf.text2.substr(0,conf.text2.length()-1);
+  cout <<">";
+  cout << conf.text2.substr(0,30);
+  cout << "..." << endl;
+  
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int mode = strtol(parse.c_str(),NULL,10);

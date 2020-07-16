@@ -66,14 +66,15 @@ int main(int argc, char *argv[]){
   //   break;
   // }
   // }
-  
+
   //auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0);
   auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0);
   BD_BWT_index<> index((uint8_t*)text.c_str());
   BD_BWT_index<> index2((uint8_t*)text2.c_str());
   conf.index1 = index;
   conf.index2 = index2;
-  
+  conf.edlibConf = edlibConf;
+
   if(false){
     chrono::steady_clock::time_point edlib1_begin = chrono::steady_clock::now();
     EdlibAlignResult result = edlibAlign(text.c_str(), text.size()-1, text2.c_str(), text2.size()-1, edlibConf);
@@ -82,7 +83,7 @@ int main(int argc, char *argv[]){
     printf("edit_distance of whole strings = %d, took %ld milliseconds\n", result.editDistance,chrono::duration_cast<chrono::milliseconds>(edlib1_end - edlib1_begin).count());
     edlibFreeAlignResult(result);
   }
-    
+
   vector<Interval_pair> Ipairs;
 
   Ipairs = computeMemIntervals(conf);
@@ -92,5 +93,5 @@ int main(int argc, char *argv[]){
   auto absentEdits = computeEditDistancesForAbsentIntervals(conf, chainintsP, Ipairs);
   auto combined = combine_MEM_and_absent_with_editDistances(conf, absentEdits, chainints);
 }
-  
+
 
