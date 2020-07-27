@@ -82,6 +82,44 @@ void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,i
 
 
 
+bool enum_diff(BD_BWT_index<> idxS, BD_BWT_index<> idxT, Interval_pair ip0, Interval_pair ip1, bool dir){
+  if(ip0.forward.left == ip0.forward.right == 1 || ip1.forward.left == ip1.forward.right == 1){
+    if(idxS.forward_bwt_at(ip0.forward.left) == BD_BWT_index<>::END){
+      return true;
+    }
+    if(idxT.forward_bwt_at(ip1.forward.left) == BD_BWT_index<>::END){
+      return true;
+    }
+  }
+  
+  if(dir){
+    unordered_set<uint8_t> s;
+    for(int i = ip0.forward.left; i <= ip0.forward.right; i++){
+      auto c = idxS.forward_bwt_at(i);
+      s.insert(c);
+    }
+    for(int j = ip1.forward.left; j <= ip1.forward.right; j++){
+      auto c = idxT.forward_bwt_at(j);
+      if(s.count(c) == 0){
+        return true;
+      }
+    }
+ }else{
+    unordered_set<uint8_t> s;
+    for(int i = ip0.reverse.left; i <= ip0.reverse.right; i++){
+      auto c = idxS.backward_bwt_at(i);
+      s.insert(c);
+    }
+    for(int j = ip1.reverse.left; j <= ip1.reverse.right; j++){
+      auto c = idxT.backward_bwt_at(j);
+      if(s.count(c) == 0){
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 
 /** Enumerates the unique characters on the forward index of the BWT.
     param idx BD_BWT_index<> Burrows-wheeler transform
@@ -319,11 +357,13 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       continue;
     }
-
-    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
-       (enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))||
-       // (enumerateRight(idxS, ip0)!=  enumerateRight(idxT, ip1))||
-       (enumerateLeft(idxS, ip0).size()==1 && enumerateLeft(idxS, ip0)[0] == BD_BWT_index<>::END)){ //Handle END symbols
+    bool diff = enum_diff(idxS,idxT,ip0,ip1,true);
+    if(//idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
+       //(enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))||
+       //(enumerateRight(idxS, ip0)!=  enumerateRight(idxT, ip1))||
+       //(enumerateLeft(idxS, ip0).size()==1 && enumerateLeft(idxS, ip0)[0] == BD_BWT_index<>::END))
+       diff)
+      { //Handle END symbols
       if(depth >= minimumDepth){
         //cout << "push sub " << ip0.toString() << endl;
         collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
@@ -353,7 +393,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
         I.insert(make_pair(i1,i2));
       }
       if(seeded){
-        auto SigmaR = enumerateRight(idxS,ip0);
+        auto SigmaR = enumerateRight(idxT,ip1);
         for(auto c : SigmaR){
           if(c == BD_BWT_index<>::END){
             //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to right with " << c << endl;
@@ -415,9 +455,9 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
           continue;
         }
         if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
-           (enumerateRight(idxS, y.first) != enumerateRight(idxT, y.second)) ||
-           ((enumerateLeft(idxS, y.first)  != enumerateLeft(idxT, y.second)) && seeded)  ||
-           (enumerateRight(idxS, y.first).size()==1 && enumerateRight(idxS,y.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
+            enum_diff(idxS,idxT,y.first,y.second,false) ||
+           (enum_diff(idxS,idxT,y.first,y.second,true) && seeded)
+            ){  //Handle END symbols
 	    
           S.insert(make_tuple(y.first,y.second, depth+1));
         }

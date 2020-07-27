@@ -86,6 +86,7 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
   // set<string> anchorMers;
   vector<pair<string,int>> m3, m4;
   int b = 0;
+  int i = 0;
   auto newtype = true;
   if(newtype){
     for(auto first : m1){
@@ -93,9 +94,12 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
       while(m2.at(b).first < first.first){
         b++;
       }
-      if(m2.at(b).first == first.first){
+      if(m2.at(b+i).first == first.first){
         m3.push_back(first);
         m4.push_back(m2.at(b));
+        i++;
+      }else{
+        i = 0;
       }
 	    }	
     }
