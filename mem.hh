@@ -82,17 +82,16 @@ void naiveOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,i
 
 
 
-bool enum_diff(BD_BWT_index<> idxS, BD_BWT_index<> idxT, Interval_pair ip0, Interval_pair ip1, bool dir){
-  if(ip0.forward.left == ip0.forward.right == 1 || ip1.forward.left == ip1.forward.right == 1){
-    if(idxS.forward_bwt_at(ip0.forward.left) == BD_BWT_index<>::END){
-      return true;
-    }
-    if(idxT.forward_bwt_at(ip1.forward.left) == BD_BWT_index<>::END){
-      return true;
-    }
-  }
-  
+bool enum_diff(BD_BWT_index<> idxS, BD_BWT_index<> idxT, Interval_pair ip0, Interval_pair ip1, bool dir){ 
   if(dir){
+    if(ip0.forward.left == ip0.forward.right == 1 || ip1.forward.left == ip1.forward.right == 1){
+      if(idxS.forward_bwt_at(ip0.forward.left) == BD_BWT_index<>::END){
+        return true;
+      }
+      if(idxT.forward_bwt_at(ip1.forward.left) == BD_BWT_index<>::END){
+        return true;
+      }
+    }
     unordered_set<uint8_t> s;
     for(int i = ip0.forward.left; i <= ip0.forward.right; i++){
       auto c = idxS.forward_bwt_at(i);
@@ -105,6 +104,14 @@ bool enum_diff(BD_BWT_index<> idxS, BD_BWT_index<> idxT, Interval_pair ip0, Inte
       }
     }
  }else{
+    if(ip0.reverse.left == ip0.reverse.right == 1 || ip1.reverse.left == ip1.reverse.right == 1){
+      if(idxS.backward_bwt_at(ip0.reverse.left) == BD_BWT_index<>::END){
+        return true;
+      }
+      if(idxT.backward_bwt_at(ip1.reverse.left) == BD_BWT_index<>::END){
+        return true;
+      }
+    }
     unordered_set<uint8_t> s;
     for(int i = ip0.reverse.left; i <= ip0.reverse.right; i++){
       auto c = idxS.backward_bwt_at(i);
@@ -238,7 +245,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
   vector<tuple<int,int,int>> ret;
   vector<pair<uint8_t,uint8_t>> A;
   vector<pair<uint8_t,uint8_t>> B;
-
+verboseSubroutine = true;
   if(verboseSubroutine) cout << "Subroutine interval: " <<pr.first.toString() << pr.second.toString() << "\n";
 #pragma omp parallel sections
   {
@@ -317,6 +324,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
       }
     }
   }
+  cout << "returning " << ret.size() << " mems from sub" << endl;
   return ret;
 }
 
@@ -349,27 +357,35 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
-    if(depth > maxDepth && depth % 5 == 0){
-      maxDepth = depth;
-    }
+    //if(depth > maxDepth && depth % 5 == 0){
+    //  maxDepth = depth;
+   // }
     S.erase(S.begin());
-    //cout << "begin "<< ip0.toString() << ip1.toString() << endl;
+    //cout << "begin "<< ip0.toString() << ip1.toString() << " depth: " << depth<< endl;
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       continue;
     }
     bool diff = enum_diff(idxS,idxT,ip0,ip1,true);
-    if(//idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
+    bool diff2 = enum_diff(idxS,idxT,ip0,ip1,false);
+    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) ||
        //(enumerateLeft(idxS, ip0) !=  enumerateLeft(idxT, ip1))||
        //(enumerateRight(idxS, ip0)!=  enumerateRight(idxT, ip1))||
        //(enumerateLeft(idxS, ip0).size()==1 && enumerateLeft(idxS, ip0)[0] == BD_BWT_index<>::END))
-       diff)
+       diff) //|| enum_diff(idxS,idxT,ip0,ip1,false)) 
       { //Handle END symbols
       if(depth >= minimumDepth){
         //cout << "push sub " << ip0.toString() << endl;
         collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
       }
+      if(seeded){
+	      auto rettemp = (bwt_mem2_subroutine(idxS,idxT,make_pair(ip0,ip1),depth));
+	     for(auto t : rettemp){ 
+	      ret.push_back(t);
+	     }
+      }
     }
     set<pair<Interval_pair,Interval_pair>> I;
+    set<pair<Interval_pair,Interval_pair>> Ir;
     if(startLabel != BD_BWT_index<>::END && depth <= 0){
       Interval_pair i1 = idxS.left_extend(ip0,startLabel);
       Interval_pair i2 = idxT.left_extend(ip1,startLabel);
@@ -393,7 +409,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
         I.insert(make_pair(i1,i2));
       }
       if(seeded){
-        auto SigmaR = enumerateRight(idxT,ip1);
+        auto SigmaR = enumerateRight(idxS,ip0);
         for(auto c : SigmaR){
           if(c == BD_BWT_index<>::END){
             //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to right with " << c << endl;
@@ -405,7 +421,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
             //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to right with " << c << endl;
             continue; //no need to bother with invalid index
           }
-          I.insert(make_pair(i1,i2));
+          Ir.insert(make_pair(i1,i2));
         }
       }
     }
@@ -448,22 +464,32 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       for(auto y : I){
         //cout << "value in I: " << y.first.toString() << y.second.toString() << endl;
 
-        if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
-          continue;
-        }
-        if(y.first.reverse.right > idxS.size()-1 || y.second.reverse.right > idxT.size()-1){
-          continue;
-        }
+        // if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
+        //   continue;
+        // }
+        // if(y.first.reverse.right > idxS.size()-1 || y.second.reverse.right > idxT.size()-1){
+        //   continue;
+        // }
         if(idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
-            enum_diff(idxS,idxT,y.first,y.second,false) ||
-           (enum_diff(idxS,idxT,y.first,y.second,true) && seeded)
+            enum_diff(idxS,idxT,y.first,y.second,false)
+           //(enum_diff(idxS,idxT,y.first,y.second,true) && seeded)
             ){  //Handle END symbols
-	    
           S.insert(make_tuple(y.first,y.second, depth+1));
+	  continue;
         }
       }
     }
-    
+    if(seeded && Ir.size() > 0){
+      for(auto y : Ir){
+        if(//idxS.is_right_maximal(y.first) || idxT.is_right_maximal(y.second) ||
+           enum_diff(idxS,idxT,y.first,y.second,true) || enumerateRight(idxS,y.first).back() != BD_BWT_index<>::END || enumerateRight(idxT,y.second).back() != BD_BWT_index<>::END){  //Handle END symbols
+          //cout << "left push" << endl;
+          S.insert(make_tuple(y.first,y.second, depth+1));
+        }
+      }
+    } 
+  }
+  
     //Have to take into the special case where we it is impossible to extend in one direction, but other direction might still have valid extensions left. If left side doesn't have any valid extensions, it will get filtered out on the next iteration before pushing anything into the stack. Only checking for enumerateLeft() could result in case where left side only has one possible extending character, and would not be reliable here.
     //std::vector<uint8_t> e1 = enumerateRight(idxS, x.first);
     // cout << "b" << endl;
@@ -478,13 +504,13 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
     //    (enumerateRight(idxS, x.first).size()==1 && enumerateRight(idxS, x.first)[0] == BD_BWT_index<>::END)){  //Handle END symbols
     //   S.insert(make_tuple(x.first,x.second, depth+1));
     // }
-  }
+  //}
 
-  if(collectedSubroutineCalls.size() == 0){
+  if(collectedSubroutineCalls.size() == 0 || seeded){
     //cout << "Could not find any MEM's with significiant enough length" << endl;
     return ret;
   }
-  //  cout << "collected subroutine (" <<collectedSubroutineCalls.size()-1<<") elements with min depth of: " << minimumDepth << endl;
+   cout << "collected subroutine (" <<collectedSubroutineCalls.size()<<") elements with min depth of: " << minimumDepth << endl;
   // int dmin = INT_MAX;
   // int dmax = INT_MIN;
   // int sum = 0;
@@ -868,7 +894,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     if(seeds.size() > 1){
       vector<tuple<Interval_pair,Interval_pair,int>> seedsVector;
       copy(seeds.begin(), seeds.end(), back_inserter(seedsVector));
-      //#pragma omp parallel for
+    #pragma omp parallel for
       for(int i = 0; i < seedsVector.size(); i++){
          auto retMem = bwt_mem2(index, index2, BD_BWT_index<>::END, seedsVector[i]);
          memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());

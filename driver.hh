@@ -75,7 +75,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     cout << "getting muts...";
-    auto muts = minimizerTuples(mini1, mini2, true).second;
+    auto muts = minimizerTuples(mini1, mini2, true, conf.text1, conf.text2).second;
     mini1 = muts.first;
     mini2 = muts.second;
     cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
@@ -90,9 +90,9 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       {
 	bool type = true;
 	if(type){
-	string text2 = string(conf.text1.rbegin(),conf.text1.rend());
+	string rev = string(conf.text1.rbegin(),conf.text1.rend());
 	auto lcp1 = createPLCP(conf.index1, conf.PLCPSparsity_q, conf.text1, true, SA1, true);
-	auto lcp2 = createPLCP(conf.index1, conf.PLCPSparsity_q,      text2, true, SA2, false);
+	auto lcp2 = createPLCP(conf.index1, conf.PLCPSparsity_q,      rev  , true, SA2, false);
 	auto b1 = partitioning(conf.minimumDepth, conf.index1, lcp1);
 	auto b2 = partitioning(conf.minimumDepth, conf.index1, lcp2);
 	set1 = minimizerToBWTInterval(b1,b2,mini1,SA1,SA2,conf.index1,lcp1,lcp2, conf.text1);
@@ -104,9 +104,9 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       {
 	bool type = true;
 	if(type){
-	string text2 = string(conf.text2.rbegin(),conf.text2.rend());
+	string rev = string(conf.text2.rbegin(),conf.text2.rend());
 	auto lcp1 = createPLCP(conf.index2, conf.PLCPSparsity_q, conf.text2, true, SA3, true);
-	auto lcp2 = createPLCP(conf.index2, conf.PLCPSparsity_q,      text2, true, SA4, false);
+	auto lcp2 = createPLCP(conf.index2, conf.PLCPSparsity_q,      rev  , true, SA4, false);
 	auto b1 = partitioning(conf.minimumDepth, conf.index2, lcp1);
 	auto b2 = partitioning(conf.minimumDepth, conf.index2, lcp2);
 	set2 = minimizerToBWTInterval(b1,b2,mini2,SA3,SA4,conf.index2,lcp1,lcp2, conf.text2);
@@ -115,18 +115,19 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     }
-    cout << "gotBWTIntervals" << endl;
+    cout << "got BWT Intervals" << endl;
     cout << "set1 size: " << set1.size() << ", set2 size: " << set2.size() << endl;
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
-    //sort(set1.begin(),set1.end(),intervalSort);
-    //sort(set2.begin(),set2.end(),intervalSort);
+    // sort(set1.begin(),set1.end(),intervalSort);
+    // sort(set2.begin(),set2.end(),intervalSort);
     int j = 0;
     for(int i = 0; i < set1.size(); i++){
       if(i < set2.size()){
-        //cout << set1[i].second << set1[i].first.toString() << endl;
-        //cout << set2[i].second << set2[i].first.toString() << endl;
-        //cout << endl;
-        seeds.insert(make_tuple(set1[i].first, set2[i].first, conf.minimumDepth));
+        //	if(set1[i].second.compare(set2[i].second) != 0) continue;
+        cout << set1[i].second << set1[i].first.toString() << endl;
+        cout << set2[i].second << set2[i].first.toString() << endl;
+        cout << endl;
+        seeds.insert(make_tuple(set1[i].first, set2[i].first, set1[i].second.length()));
       }
     }
     cout << "seeds size: " << seeds.size() << endl;
@@ -140,7 +141,17 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());
   return Ipairs;
 }
+
+
 vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interval_pair> Ipairs){
+  for(auto asd : Ipairs){
+    int i,j,k;
+    i = asd.forward.left;
+    j = asd.reverse.left;
+    k = asd.forward.right-asd.forward.left+1;
+
+    cout << "Ipair: " << i << "," << j << "," << k << endl; 
+}
   chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
   auto chains = chaining(Ipairs, conf.maxSize);
   chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
