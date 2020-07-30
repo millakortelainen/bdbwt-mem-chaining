@@ -53,7 +53,11 @@ struct mimsort {
     return first.first < second.first;
   }
 };
-
+struct mimsortIndex {
+  bool operator() (const pair<string,int>& first, const pair<string,int>& second) const{
+    return first.second < second.second;
+  }
+};
 
 bool mimCompare (pair<string,int> first, pair<string,int> second){
   return first.first < second.first;
@@ -64,20 +68,23 @@ bool mimCompareIndex (pair<string,int> first, pair<string,int> second){
 
 vector<pair<string,int>> minimizers(string t1, int k, int w){
   //  cout << "enter minimizer";
-  vector<set<pair<string,int>,mimsort>> kmers((t1.size()));
+  vector<pair<string,int>> kmers((t1.size()));
   vector<pair<string,int>> ret;
+  set<pair<string,int>,mimsortIndex> minimizers;
+  vector<pair<string,int>>::iterator minimizer;
 
   for(int i = 0; i < t1.size()-k; i++){
-    //inserting k-mers into w buckets, which are kept in lexicographic order.
-    kmers.at((int)(i/w)).insert(make_pair(t1.substr(i,k),i));
-    //    cout << ".";
+    kmers.push_back(make_pair(t1.substr(i,k),i));
+    if(i >= w){
+      minimizer = min_element(kmers.end()-w,kmers.end(),mimCompare);
+      auto mini = *minimizer;
+        minimizers.insert(mini);
+      }
   }
-  for(auto km : kmers){
-    if(!km.empty()){
-      auto x = *km.begin();
-      //    cout << x.first << endl;
-      ret.push_back(x);
-    }
+  // cout << "minimizers: " << endl;
+  for(auto km : minimizers){
+  //  cout << km.first << endl;
+    ret.push_back(km);
   }
   cout << "found " << ret.size() << " minimizers" << endl;
   sort(ret.begin(), ret.end(), minimizerLexSort);
@@ -182,8 +189,21 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   }
   m1 = muts.first;
   m2 = muts.second;
-
-  cout << "sorted minimems" << endl;
+  bool doMerger = false;
+  if(doMerger){
+    cout << "test" << endl;
+    //sort(retTuple.begin(),retTuple.begin(),memSort);
+    //retTuple = mergeMinimizers(retTuple,text1,text2);
+    sort(m1.begin(),m1.end(), mimCompareIndex);
+    sort(m2.begin(),m2.end(), mimCompareIndex);
+    auto merger = mergeMinimizerPairs(m1,m2,text1,text2);
+    cout << "merger done" << endl;
+    m1 = merger.first;
+    m2 = merger.second;
+    cout << "sorted minimems" << endl;
+    sort(m1.begin(),m1.end(), mimCompare);
+    sort(m2.begin(),m2.end(), mimCompare);
+  }
   for(auto x : m1){
     int i = 0;
     for(auto y : m2){
@@ -218,11 +238,8 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
       //}
     }
   }
-  sort(retTuple.begin(),retTuple.begin(),memSort);
-  //retTuple = mergeMinimizers(retTuple,text1,text2);
-  sort(retRaw.first.begin(),retRaw.first.end(), mimCompare);
-  sort(retRaw.second.begin(),retRaw.second.end(), mimCompare);
-  //retRaw = mergeMinimizerPairs(retRaw.first, retRaw.second,text1,text2);
+
+  cout << "ret muts" << endl;
   return make_pair(retTuple,retRaw);
 }
 vector<tuple<int,int,int>> mergeMinimizers(vector<tuple<int,int,int>> mini, string text1, string text2){  
@@ -231,18 +248,19 @@ vector<tuple<int,int,int>> mergeMinimizers(vector<tuple<int,int,int>> mini, stri
     tie(a,b,c) = mini.at(x-1);	
     tie(i,j,k) = mini.at(x);
     if(i-a == j-b && a+c >= i && b+c >= j){
-      mini.erase(mini.begin()+x);
-      mini.at(x-1) = make_tuple(a,b,c+abs(c-k));
+      mini.at(x) = make_tuple(a,b,c+abs(c-k));
+      mini.erase(mini.begin()+x-1);
+      x--;
     }
   }
   return mini;
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vector<pair<string,int>> mini1, vector<pair<string,int>> mini2, string text1, string text2){
   int a,b,c,i,j,k;
-  //cout << "merger" << endl;
-  //for(auto m : mini1){
-//	  cout << m.second << endl;
- // }
+  cout << "merger" << endl;
+  for(auto m : mini1){
+	  cout << m.first << "," << m.second << endl;
+ }
   for(int x = 1; x < mini1.size(); x++){
     if(mini1.at(x).first.compare(mini2.at(x).first) != 0) continue;
     if(mini1.at(x-1).first.compare(mini2.at(x-1).first) != 0) continue;
@@ -257,14 +275,14 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vect
     int xlen = c-(i-(a+c))+k+1;
     int ylen = c-(j-(b+c))+k+1;
 
-    if(a+c-1 < i-(k+1) && b+c-1 < j-(k+1)) continue;  
-    cout << "dist = " << i-(a+c+1) << ",(" << a << "," << i << ")" << endl; 
-    if(text1.substr(a,xlen).compare(text2.substr(b,ylen)) == 0){
+    if(a+c < i && b+c< j || c < 1 || k < 1)  continue;
+    //cout << "dist = " << i-(a+c+1) << ",(" << a << "," << i << ")" << endl; 
+    if(i-a == j-b && a+c >= i && b+c >= j){
 	    string f = mini1.at(x-1).first;
 	    string e = mini1.at(x).first;
 	    int d = a+c-i;
 	    int l = abs(d)+1;
-	    string merged = text1.substr(a,xlen);
+	    string merged = text1.substr(a,c+abs(c-k));
 	    cout << "merged: " << merged << " (" << a << "," << i << ")" <<endl;
 
       mini1.at(x) = make_pair(merged,a);

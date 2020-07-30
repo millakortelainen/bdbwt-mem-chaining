@@ -31,7 +31,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     cout << mini1.size() << "\t " << mini2.size() << endl;
-    auto mimimems = minimizerTuples(mini1,mini2).first;
+    auto mimimems = minimizerTuples(mini1,mini2, false, conf.text1, conf.text2).first;
     cout << mimimems.size() << endl;
     auto minimems = memifyMinimizers(mimimems, conf.text1, conf.text2);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
@@ -123,10 +123,10 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     int j = 0;
     for(int i = 0; i < set1.size(); i++){
       if(i < set2.size()){
-        //	if(set1[i].second.compare(set2[i].second) != 0) continue;
-        cout << set1[i].second << set1[i].first.toString() << endl;
-        cout << set2[i].second << set2[i].first.toString() << endl;
-        cout << endl;
+        if(set1[i].second.compare(set2[i].second) != 0) continue;
+        //cout << set1[i].second << set1[i].first.toString() << endl;
+        //cout << set2[i].second << set2[i].first.toString() << endl;
+        //cout << endl;
         seeds.insert(make_tuple(set1[i].first, set2[i].first, set1[i].second.length()));
       }
     }
@@ -144,14 +144,14 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
 
 
 vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interval_pair> Ipairs){
-  for(auto asd : Ipairs){
-    int i,j,k;
-    i = asd.forward.left;
-    j = asd.reverse.left;
-    k = asd.forward.right-asd.forward.left+1;
+  // for(auto asd : Ipairs){
+//     int i,j,k;
+//     i = asd.forward.left;
+//     j = asd.reverse.left;
+//     k = asd.forward.right-asd.forward.left+1;
 
-    cout << "Ipair: " << i << "," << j << "," << k << endl; 
-}
+//     cout << "Ipair: " << i << "," << j << "," << k << endl; 
+// }
   chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
   auto chains = chaining(Ipairs, conf.maxSize);
   chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
