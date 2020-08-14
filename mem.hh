@@ -35,7 +35,7 @@ The seeds are primarily meant for the hybrid computation mode, but other use for
 vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Interval_pair,Interval_pair,int>> seeds);
 /** Main driver for finding MEM-matches with bi-directional BWT index.
 */
-vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel, set<tuple<Interval_pair,Interval_pair,int>> seed);
+vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel, set<tuple<Interval_pair,Interval_pair,int>> seed);
 /** Subroutine called from bwt_mem2, extends the given interval to the left, and right for all valid combinations gained from cross_product.
 Returns location tuples for positions where a MEM match can be confirmed to be in.
 */
@@ -333,9 +333,12 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
 
     return vector<tuple<int,int,int>> returns tuples (i,j,d) where i,j correspond to starting points of MEM's in the two indexes.
 */
-vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, uint8_t startLabel = BD_BWT_index<>::END, tuple<Interval_pair,Interval_pair,int> seed = make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)){
+vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_BWT_index<>::END, tuple<Interval_pair,Interval_pair,int> seed = make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)){
+  auto idxS = conf.index1;
+  auto idxT = conf.index2;
   vector<pair<pair<Interval_pair,Interval_pair>,int>> collectedSubroutineCalls;
   vector<tuple<int,int,int>> ret;
+  set<tuple<int,int,int>, memTupleSortStruct> retSet;
   set<tuple<Interval_pair,Interval_pair,int>> S;
   set<tuple<Interval_pair,Interval_pair,int>> processed;
   Interval_pair ip0, ip1; int depth = -1;
@@ -353,6 +356,7 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   }else{
     S.insert(seed);
     seeded = true;
+    //cout << "seeded BDBWR" << endl;
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
@@ -395,7 +399,10 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       }
       I.insert(make_pair(i1,i2));
     }else{
-      auto Sigma = enumerateLeft(idxS,ip0);
+      auto Sigma = conf.alphabet;
+      //if(ip0.reverse.size() < conf.alphabet.size()){
+      //  auto Sigma = enumerateLeft(idxS,ip0);
+      //}
       for(auto c : Sigma){
         if(c == BD_BWT_index<>::END){
           //cout << "could not extend " << ip0.toString() << "," << ip1.toString() << " to left with " << c << endl;
@@ -465,8 +472,8 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
       }
     }
     if(seeded && (!idxS.is_left_maximal(ip0) || !idxT.is_left_maximal(ip1))){
-      auto SigmaR = enumerateRight(idxS,ip0);
-      for(auto c : SigmaR){
+      //auto SigmaR = enumerateRight(idxS,ip0);
+      for(auto c : conf.alphabet){
         if(c == BD_BWT_index<>::END){
           continue;
         }
@@ -526,22 +533,32 @@ vector<tuple<int,int,int>> bwt_mem2(BD_BWT_index<> idxS, BD_BWT_index<> idxT, ui
   // cout << "minimum depth based on sampling " << dfilter << endl;
   // ret.reserve(collectedSubroutineCalls.size());
   vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
+  int totalcount = 0;
 #pragma omp parallel for
   for(int i = 0; i < collectedSubroutineCalls.size(); i++){
     auto p = collectedSubroutineCalls[i];
     if(p.second < minimumDepth){
       continue;
     }
+
     if(verboseSubroutine) cout << "Enter subroutine with depth: " << p.second << "\n";
     auto rettemp = bwt_mem2_subroutine(idxS,idxT,p.first,p.second);
-    rettempThreadContainer[omp_get_thread_num()].insert(rettempThreadContainer[omp_get_thread_num()].end(), rettemp.begin(), rettemp.end());
+    //    rettempThreadContainer[omp_get_thread_num()].insert(rettempThreadContainer[omp_get_thread_num()].end(), rettemp.begin(), rettemp.end());
+    int count = 0;
     for(auto rt : rettemp){
       rettempThreadContainer[omp_get_thread_num()].push_back(rt);
+      count++;
+      totalcount++;
+    }
+    //cout << "thread got " << count << endl;
+  }
+  cout<< "total count " << totalcount << endl;
+  for(auto i : rettempThreadContainer){
+    for(auto j : i){
+      retSet.insert(retSet.end(), j);
     }
   }
-  for(auto i : rettempThreadContainer){
-    ret.insert(ret.end(), i.begin(), i.end());
-  }
+  ret.insert(ret.end(), retSet.begin(),retSet.end());
   return ret;
 }
 	       
@@ -864,9 +881,10 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
     auto b = c.reverse;
     int d = c.forward.right - c.forward.left+1;
     cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
-    cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
+    //cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
     count++;
   }
+  cout << "total number of chains: " << count << ", total symmetric coverage: " << symcov.front() << endl;
   return (make_pair(chainIntervals, symcov));
 }
 // Giving seeds an default value so we can easily leave it out if we don't use them.
@@ -878,7 +896,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
   vector<tuple<int,int,int>> mems;
   bool threadedBWT = true;
   if(threadedBWT){
-    set<tuple<int,int,int>> memFilter;
+    vector<tuple<int,int,int>> memFilter;
     cout << "finding mems between indexes...";
     auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
     if(enumLeft.at(0) == BD_BWT_index<>::END){
@@ -891,29 +909,50 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     if(seeds.size() > 1){
       vector<tuple<Interval_pair,Interval_pair,int>> seedsVector;
       copy(seeds.begin(), seeds.end(), back_inserter(seedsVector));
-      #pragma omp parallel for
+#pragma omp parallel for
       for(int i = 0; i < seedsVector.size(); i++){
-         auto retMem = bwt_mem2(index, index2, BD_BWT_index<>::END, seedsVector[i]);
+         auto retMem = bwt_mem2(conf, BD_BWT_index<>::END, seedsVector[i]);
          memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
       }
     }
     else{
-#pragma omp parallel
+#pragma omp parallel for
       for(int i = 0; i < enumLeft.size(); i++){
-        auto retMem = bwt_mem2(index, index2, enumLeft.at(i));
+        //cout << "enter" << i << endl;
+        auto retMem = bwt_mem2(conf, enumLeft.at(i));
         memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
+        //cout << "exit" << i << endl;
       }
     }
-    cout << "done finding mems in threads, collapsing";
+    //cout << "done parallel" << endl;
+    //cout << "done finding mems in threads, collapsing";
+    int count = 0;
+    //int threadNum = 0;
+#pragma omp single
     for(auto a : memThreads){
+      //cout << threadNum << " size: " << a.size();
       for(auto b : a){
-        memFilter.insert(b);
+        memFilter.push_back(b);
+        //count++;
       }
     }
-    mems.insert(mems.end(), memFilter.begin(), memFilter.end());
+    //cout << "done merge, merged " << count << " elements"<< endl;
+    sort(memFilter.begin(),memFilter.end(), memSort);
+    //cout << "done sort" << endl;
+    set<tuple<int,int,int>, memTupleSortStruct> uniqueTuples;
+    int hint = 0;
+    for(auto a : memFilter){
+      uniqueTuples.insert(uniqueTuples.end(), a);
+      hint++;
+    }
+    //cout << "done set" << endl;
+    mems.reserve(uniqueTuples.size()-1);
+    for(auto a : uniqueTuples){
+      mems.emplace_back(a);
+    }
   }
   else{
-    mems = bwt_mem2(index,index2, BD_BWT_index<>::END);
+    mems = bwt_mem2(conf, BD_BWT_index<>::END);
   }
 
   cout << "found mems," << mems.size() << "...";

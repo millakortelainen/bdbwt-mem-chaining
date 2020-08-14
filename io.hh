@@ -104,6 +104,11 @@ Configuration readConfiguration(string filename){
   cout << "Window Size: " << minimizerWinSize << endl;
   conf.minimizerWindowSize = minimizerWinSize;
 
+  getline(fa,line);
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int minimizerMergerCount = strtol(parse.c_str(),NULL,10);
+  cout << "Minimizer merger count: " << minimizerWinSize << endl;
+  conf.miniMergerCount = minimizerMergerCount;
   return conf;
   
 }

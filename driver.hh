@@ -19,21 +19,21 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
     cout << conf.minimumDepth << ", " << conf.minimizerWindowSize << endl;
-#pragma opm parallel sections
+#pragma omp parallel sections
     {
-#pragma opm section
+#pragma omp section
       {
 	mini1 = minimizers(conf.text1, conf.minimumDepth, conf.minimizerWindowSize);
       }
-#pragma opm section
+#pragma omp section
       {
 	mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
       }
     }
     cout << mini1.size() << "\t " << mini2.size() << endl;
-    auto mimimems = minimizerTuples(mini1,mini2, false, conf.text1, conf.text2).first;
+    auto mimimems = minimizerTuples(mini1,mini2,conf, false).first;
     cout << mimimems.size() << endl;
-    auto minimems = memifyMinimizers(mimimems, conf.text1, conf.text2);
+    auto minimems = memifyMinimizers(mimimems, conf);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
     break;
   }
@@ -41,41 +41,41 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
     vector<pair<int,int>> SA1, SA2, SA3, SA4;
-#pragma opm parallel sections
+#pragma omp parallel sections
     {
-#pragma opm section
+#pragma omp section
       {
         mini1 = minimizers(conf.text1, conf.minimumDepth, conf.minimizerWindowSize);
 	cout << "mini1 done" << endl;
       }
-#pragma opm section
+#pragma omp section
       {
         mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
 	cout << "mini2 done" << endl;
       }
-#pragma opm section
+#pragma omp section
       {
         SA1 = buildSAfromBWT(conf.index1, true);
 	cout << "SA1 done" << endl;
       }
-#pragma opm section
+#pragma omp section
       {
         SA2 = buildSAfromBWT(conf.index1, false);
 	cout << "SA2 done" << endl;
       }
-#pragma opm section
+#pragma omp section
       {
         SA3 = buildSAfromBWT(conf.index2, true);
 	cout << "SA3 done" << endl;
       }
-#pragma opm section
+#pragma omp section
       {
         SA4 = buildSAfromBWT(conf.index2, false);
 	cout << "SA4 done " << endl;
       }
     }
     cout << "getting muts...";
-    auto muts = minimizerTuples(mini1, mini2, true, conf.text1, conf.text2).second;
+    auto muts = minimizerTuples(mini1, mini2, conf, true).second;
     mini1 = muts.first;
     mini2 = muts.second;
     cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
@@ -84,9 +84,9 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     vector<pair<Interval_pair,string>> set1;
     vector<pair<Interval_pair,string>> set2;
 
-#pragma opm parallel sections
+#pragma omp parallel sections
     {
-#pragma opm section
+#pragma omp section
       {
 	bool type = true;
 	if(type){
@@ -100,7 +100,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
 	//set1 = minimizerToBWTIntervalV2(mini1,conf.minimumDepth, SA1, SA2, conf.index1.get_global_c_array(), conf.text1);
 	}
       }
-#pragma opm section
+#pragma omp section
       {
 	bool type = true;
 	if(type){
@@ -160,11 +160,13 @@ vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interva
 pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
   return chainingOutput(chains, Ipairs, conf.text1, conf.text2);
 }
-vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs){
+vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs, bool verbose){
   auto chainints = chainintspair.first;
   auto absent = absentIntervals(chainints, conf.index1, conf.index2); 
-  vector<pair<Interval_pair, int>> absentEdits;
+  vector<vector<pair<Interval_pair, int>>> absentEdits(omp_get_max_threads());
+  vector<pair<Interval_pair,int>> absentRet;
   int totalEditDistance = 0;
+  #pragma omp parallel for
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1){
@@ -185,20 +187,27 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
     int d = absent[i].reverse.right;
     int length = ((b-a) > (d - c))? (b-a) : (d-c);
     
-    cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
+    if(verbose) cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
     
-    cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
+    if(verbose) cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
          << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
          << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
     
-    totalEditDistance += ed;
-    absentEdits.push_back(make_pair(absent[i], ed));
+    //totalEditDistance += ed;
+    absentEdits[omp_get_thread_num()].push_back(make_pair(absent[i], ed));
   }
+  for(auto a : absentEdits){
+    for(auto b : a){
+      totalEditDistance += b.second;
+      absentRet.push_back(b);
+    }
+  }
+  sort(absentRet.begin(), absentRet.end(), intervalIntPairSort);
   cout << "total edit distance became: " << totalEditDistance << "/ " << conf.originalEditDistance << endl;
-  return absentEdits;
+  return absentRet;
 }
 
-vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Configuration conf, vector<pair<Interval_pair, int>> absentEdits, vector<Interval_pair> chainints){
+vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Configuration conf, vector<pair<Interval_pair, int>> absentEdits, vector<Interval_pair> chainints, bool verbose){
   int ci = 0;
   int ai = 0;
   bool absentFirst = true;
@@ -212,20 +221,20 @@ vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Confi
 
     if(absentFirst){
       if(absentEdits.size()-1 >= ai){
-	cout << "A: " << absentEdits[ai].first.toString() << endl;
+        if(verbose) cout << "A: " << absentEdits[ai].first.toString() << endl;
 	combinedED.push_back(absentEdits[ai]);
       }
       if(chainints.size()-1 >= ci){
-	cout << "C: " << chainints[ci].toString() << endl;
+        if(verbose) cout << "C: " << chainints[ci].toString() << endl;
 	combinedED.push_back(make_pair(chainints[ci], 0));
       }
     }else{
       if(chainints.size()-1 >= ci){
-	cout << "C: " << chainints[ci].toString() << endl;
+        if(verbose) cout << "C: " << chainints[ci].toString() << endl;
 	combinedED.push_back(make_pair(chainints[ci], 0));
       }
       if(absentEdits.size()-1 >= ai){
-	cout << "A: " << absentEdits[ai].first.toString() << endl;
+        if(verbose) cout << "A: " << absentEdits[ai].first.toString() << endl;
 	combinedED.push_back(absentEdits[ai]);
       }
     }

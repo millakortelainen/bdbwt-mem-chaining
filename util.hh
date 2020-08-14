@@ -59,15 +59,42 @@ struct Configuration {
   std::string text2;
   BD_BWT_index<> index1;
   BD_BWT_index<> index2;
-
+  set<char> alphabet;
+  
   int minimumDepth;
   int minimizerWindowSize;
+  int miniMergerCount = 0;
+
   int PLCPSparsity_q = 1;
   int maxSize = (index1.size() > index2.size())? index1.size() : index2.size();
   EdlibAlignConfig edlibConf;
   int originalEditDistance = -1;
   
 };
+struct memTupleSortStruct {
+  bool operator() (const tuple<int,int,int>& set1, const tuple<int,int,int>& set2) const{
+    int i,j,d;
+    int x,y,z;
+    tie(i,j,d) = set1;
+    tie(x,y,z) = set2;
+  
+    if(i != x){
+      return (i < x);
+    }
+    else{
+      if(d != z){
+        return (d > z);
+      }
+      else{
+        if(j != y){
+          return (j < y);
+        }
+      }
+    }
+    return 0;
+}
+};
+
 /* END_STRUCTS */
 
 /* BEGIN_SORT */
@@ -115,6 +142,16 @@ bool intervalSort(const Interval_pair &a, const Interval_pair &b){
   int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
   return (a < b);
 }
+bool intervalIntPairSort(const pair<Interval_pair,int> &c, const pair<Interval_pair,int> &d){
+  auto a = c.first;
+  auto b = d.first;
+  int aac = (a.reverse.left - a.forward.left);
+  int bac = (b.reverse.left - a.forward.left);
+  int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
+  int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
+  return (a < b);
+}
+
 bool intervalSortDiff(const Interval_pair &a, const Interval_pair &b){
   int aac = (a.reverse.left - a.forward.left);
   int bac = (b.reverse.left - b.forward.left);
