@@ -143,6 +143,35 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
   }
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+  vector<pair<string,int>> m3, m4;
+  int b = 0;
+  int i = 0;
+  auto newtype = true;
+  if(newtype){
+    for(auto first : m1){
+      if(m3.size() > 0){
+        if(m3.back() == first){
+          continue;
+        }
+      }
+    if(b < m2.size()-1){
+        while(m2.at(b).first < first.first){
+          b++;
+        }
+        if(b+i < m2.size() && m2.at(b+i).first == first.first){
+          m3.push_back(first);
+          m4.push_back(m2.at(b));
+          i++;
+        }else{
+          i = 0;
+        }
+	    }	
+    }
+    //cout << "hue" << endl;
+    //auto ret = mergeMinimizerPairs(m3,m4);
+    return make_pair(m3,m4);
+
+  }else{
   unordered_set<string> m1Kmer(m1.size()-1);
   unordered_set<string> m2Kmer(m2.size()-1);
   unordered_set<string> anchorMers;
@@ -174,6 +203,7 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<
   }
   //auto ret = mergeMinimizerPairs(m3,m4);
   return make_pair(m3,m4);
+  }
 }
 
 pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<string,int>> > > minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2, Configuration conf, bool unique = false){
@@ -532,6 +562,8 @@ vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv
     int revOffset (mini[j].first.length()-1);
     auto s  = SA[i].second;
     auto s2 = SAr[ir-revOffset].second;
+    //auto s = i;
+    //auto s2 = ir-revOffset;
 
     int r1,r2,r3,r4;
     if(bv[s] == 1){
