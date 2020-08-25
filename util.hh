@@ -9,46 +9,24 @@
 #include "edlib.h"
 using namespace std;
 
-int suffcmp(struct suffix first, struct suffix last);
 int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2);
 bool pairSort(const pair<int,int> &first, const pair<int,int> &second);
-bool pairSortSecond(const pair<int,int> &first, const pair<int,int> &second);
-bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int,int>> &second);
 bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second);
 bool intervalSort(const Interval_pair &a, const Interval_pair &b);
-bool intervalSortDiff(const Interval_pair &a, const Interval_pair &b);
 vector<struct occStruct> radixSort(vector<struct occStruct> list, int r);
 
 vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup, bool sortIntervals);
-vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs, int size);
 vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2);
 pair<map<int,int>,int> mapLF(BD_BWT_index<>& index, bool forward);
 /* Naive function to build suffix array from input text 
  */
-int* build_suffix_array(string text);
-/* Building suffix array in space efficient manner directly from BWT.
- */
 vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA);
 /* Obsolete recursion function for building SA from BWT.
  */
-pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA, int i);
-
 int chainingMax(int &a, int &b, int &c, int &d);
-vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems);
-
-/* Pretty print for certain informations. Mainly intended as debugging tool.
- */
-void pretty_print_all(BD_BWT_index<>& index, string text1);
-  
-
-
 
 set<char> alphabet;
 /* BEGIN_STRUCTS */
-struct suffix{
-  int index;
-  string suffix;
-};
 struct occStruct{
   int first;
   int second;
@@ -98,9 +76,6 @@ struct memTupleSortStruct {
 /* END_STRUCTS */
 
 /* BEGIN_SORT */
-int suffcmp(struct suffix first, struct suffix last){
-  return (first.suffix < last.suffix)? 1:0;
-}
 int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
   int i,j,d;
   int x,y,z;
@@ -126,12 +101,6 @@ int memSort(tuple<int,int,int> set1, tuple<int,int,int> set2){
 bool pairSort(const pair<int,int> &first, const pair<int,int> &second){
   return (first.first < second.first);
 }
-bool pairSortSecond(const pair<int,int> &first, const pair<int,int> &second){
-  return (first.second < second.second);
-}
-bool chainPairSort(const pair<int,pair<int,int>> &first, const pair<int,pair<int,int>> &second){
-  return (first.first < second.first);
-}
 bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second){
   return (first.first < second.first);
 }
@@ -150,14 +119,6 @@ bool intervalIntPairSort(const pair<Interval_pair,int> &c, const pair<Interval_p
   int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
   int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
   return (a < b);
-}
-
-bool intervalSortDiff(const Interval_pair &a, const Interval_pair &b){
-  int aac = (a.reverse.left - a.forward.left);
-  int bac = (b.reverse.left - b.forward.left);
-  int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
-  int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
-  return (abs(aac) < abs(bac));
 }
 
 vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
@@ -199,54 +160,6 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   return Ipairs;
 }
 
-vector<Interval_pair> filterIntervals(vector<Interval_pair> Ipairs, int size){
-  //  const int s = size;
-  vector<int> bsl(size,-1);
-  vector<int> bsr(size,-1);
-  vector<Interval_pair> Ipairs2;
-  sort(Ipairs.begin(), Ipairs.end(), intervalSortDiff);
-  Ipairs2.push_back(Ipairs[0]);
-
-  for(int i = 1; i < Ipairs.size(); i++){
-    int count = 0;
-    auto ip = Ipairs.at(i);
-    auto io = Ipairs2.at(Ipairs2.size()-1);
-    for(int j = ip.forward.left; j <= ip.forward.right; j++){
-      if(bsl.at(j) > -1){
-	count++;
-      }
-    }
-    for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
-      if(bsr.at(j) > -1){
-	count++;
-      }
-    }
-    if(count > ((abs(ip.reverse.left - ip.forward.left)))){
-      //continue;
-    }
-    if(ip.forward.left >= io.forward.left && ip.forward.right <= io.forward.right){ //nested case
-      if(abs(ip.reverse.left-ip.forward.left) < abs(io.reverse.left-io.forward.left)){
-	Ipairs2.pop_back();	
-      }
-      Ipairs2.push_back(ip);
-      for(int j = ip.forward.left; j <= ip.forward.right; j++){
-	bsl.at(j) = i;
-      }
-      for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
-	bsr.at(j) = i;
-      }
-    }else{
-      Ipairs2.push_back(ip);
-      for(int j = ip.forward.left; j <= ip.forward.right; j++){
-	bsl.at(j) = i;
-      }
-      for(int j = ip.reverse.left; j <= ip.reverse.right; j++){
-	bsr.at(j) = i;
-      }
-    }
-  }
-  return Ipairs2;
-}
 vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2){
 
   vector<Interval_pair> absents;
@@ -353,44 +266,7 @@ pair<map<int,int>,int> mapLF(BD_BWT_index<>& index, bool forward){
   }
   return make_pair(lfmapping,zeroth_index);
 }
-
-int* build_suffix_array(string text){
-  text += BD_BWT_index<>::END;
-  struct suffix suffix_array[text.size()+1];
-  int *suffix_index_array = new int[text.size()+1];
-
-  for(int i = 0; i < text.size(); i++){
-    suffix_array[i].index = i;
-    suffix_array[i].suffix = text.substr(i,text.size()+1);
-  }
-  sort(suffix_array,suffix_array+text.size(),suffcmp);
-
-  for(int i = 0; i < text.size(); i++){
-    cout << suffix_array[i].index << "\t" << suffix_array[i].suffix  << "\n";
-    suffix_index_array[i] = suffix_array[i].index;
-  }
-  return suffix_index_array;
-}
-
-/** Creating SA with use of recursive LF mapping.
-    The second in the pair is obsolete and should be removed. (from pretty print as well)
-*/
-pair< vector<int>,vector<int> > int_ret_recurse(BD_BWT_index<> idxS, map<int,int> LFI, int currIndex, int k, vector<int> retSA, vector<int> retISA, int i = 0){
-  if(k < idxS.size()-1){
-    cout << currIndex << "\t" << i << " ";
-    cout << LFI.at(currIndex) << endl;
-    //retSA[currIndex] = make_pair(idxS.size()-k-1, currIndex);
-    retSA.at(currIndex) = idxS.size()-k-1;
-    retISA.at(idxS.size()-k-1) = currIndex;
-    return int_ret_recurse(idxS, LFI, LFI.at(currIndex), k+1, retSA, retISA, i+1);
-  }else{
-    retSA[currIndex] = idxS.size()-k-1;
-    retISA[idxS.size()-k-1] = currIndex;
-    return make_pair(retSA, retISA);
-  }
-}
-/** Creating SA with use of recursive LF mapping.
-    Obsolete outside of naive output and pretty print
+/** Creating SA with through BWT.
 */
 vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
   //  cout << idxS.size()-1 << " <- size()" << endl;
@@ -432,48 +308,5 @@ int chainingMax(int &a, int &b, int &c, int &d){
   return (e > f)? e:f;
 }
 
-vector<tuple<int,int,int>> filterMems(vector<tuple<int,int,int>> mems){
-  vector<tuple<int,int,int>> filtered;
-  for(auto m : mems){
-    int i,j,d;
-    tie(i,j,d) = m;
-    if(filtered.size() == 0){
-      filtered.push_back(m);
-    }else{
-      int x,y,z;
-      tie(x,y,z) = filtered[filtered.size()-1];
-      if(i == x && y == j){
-	
-      }else{
-	filtered.push_back(m);
-      }
-    }
-  }
-  return filtered;
-}
 /* END_AUX */
-
-
-
-/** Print out BWT, LF and SA indices.
-param index BD_BWT_index<>& Burrows Wheeler index.
-param text1 string original text that the BWT is based on.
-*/
-void pretty_print_all(BD_BWT_index<>& index, string text1){
-  string separator = "+------------------------------------------------+\n";
-  cout << separator;
-  auto SA = buildSAfromBWT(index, true);
-  cout << separator;
-  cout << "Text: " << text1 << "\n";
-  cout << separator;
-  cout << "| bwd\t" << "ln\t" << "fwd\t" << "LF\t" << "SA[i]\t" << "SA[i].s" << "\t |\n";
-  auto mapping = mapLF(index, true).first;
-  
-  for(int i = 0; i < index.size(); i++){
-    char t = (char)index.forward_bwt_at(i);
-    char tr= (char)index.backward_bwt_at(i);
-    cout << "| "<< tr << "\t("<<i<<")\t" << t << "\t" << mapping[i] << "\t" << SA[i].first << "\t" << SA[i].second << "\t |\n";
-  }
-  cout << separator;
-}
 #endif

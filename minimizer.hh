@@ -26,7 +26,6 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
 */
 pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<string,int>> > > minimizerTuples(vector<pair<string,int>> m1, vector<pair<string,int>> m2, Configuration conf, bool unique);
 
-vector<tuple<int,int,int>> mergeMinimizers(vector<tuple<int,int,int>> mini, string text1, string text2);
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vector<pair<string,int>> mini1, vector<pair<string,int>> mini2, Configuration conf);
 
 /** Naive implementation to extend mutual minimizers left and right to obtain MEM match.
@@ -41,11 +40,7 @@ vector<int> createLCPFromPLCP(vector<int> PLCP, vector<pair<int,int>> SA);
 /** Creating an partition bitvector, such that B[i] = 1, iff: LCP[i] < k
  */
 sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,vector<int>> PLCPLCP);
-/** Using Suffix Array indexes to compute BWT intervals from minimizers, thus allowing use of BDBWT to finalize MEM matching.
- */
-vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, string text);
-/** Using Suffix Array indexes to compute BWT intervals from minimizers, thus allowing use of BDBWT to finalize MEM matching. Unused, left for completeness. Implementation contains issues on correctness of results.
- */
+/** Using Suffix Array indexes to compute BWT intervals from minimizers, */
 vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv, sdsl::int_vector<1> bvr, vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, pair<vector<int>,vector<int>> lcp1, pair<vector<int>,vector<int>> lcp2, string text);
 
 
@@ -91,11 +86,7 @@ vector<pair<string,int>> minimizers(string t1, int k, int w){
   sort(ret.begin(), ret.end(), minimizerLexSort);
   return ret;
 }
-
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
-  // unordered_set<string> m1Kmer(m1.size()-1);
-  // unordered_set<string> m2Kmer(m2.size()-1);
-  // set<string> anchorMers;
   vector<pair<string,int>> m3, m4;
   int b = 0;
   int i = 0;
@@ -113,33 +104,9 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
       }else{
         i = 0;
       }
-	    }	
+	    }
     }
-    //cout << "hue" << endl;
-    //auto ret = mergeMinimizerPairs(m3,m4);
     return make_pair(m3,m4);
-  }else{
-    // for(auto first : m2){
-    //   m2Kmer.insert(first.first);
-    // }
-    // for(auto m : m1Kmer){
-    //   if(m2Kmer.find(m) != m2Kmer.end()){
-    //     anchorMers.insert(m);
-    //   }
-    // }
-    // // for(auto m: anchorMers){
-    // //   cout << "anchorMer: "<< m << endl;
-    // // }
-    // int maxSize = (m1.size()-1 > m2.size()-1)? m1.size()-1 : m2.size()-1;
-    // for(int i = 0; i < maxSize; i++){
-    //   if((m1.size()-1 > maxSize) && (anchorMers.find(m1.at(i).first) == anchorMers.end())){
-    //     m1.erase(m1.begin()+i);
-    //   }
-    //   if((m2.size()-1 > maxSize) && (anchorMers.find(m2.at(i).first) == anchorMers.end())){
-    //     m2.erase(m2.begin()+i);
-    //   }
-    // }
-    // return make_pair(m1,m2);
   }
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
@@ -167,8 +134,6 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<
         }
 	    }	
     }
-    //cout << "hue" << endl;
-    //auto ret = mergeMinimizerPairs(m3,m4);
     return make_pair(m3,m4);
 
   }else{
@@ -213,7 +178,6 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   sort(m1.begin(), m1.end(), mimCompare);
   sort(m2.begin(), m2.end(), mimCompare);
 
-
   sdsl::int_vector<1> bv(conf.text1.length()+1, 0, 1);
   sdsl::rank_support_v<1> b_rank(&bv);
   sdsl::bit_vector::select_1_type b_select(&bv);
@@ -233,17 +197,12 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   bool doMerger = true;
   if(doMerger){
     cout << "test" << endl;
-    //sort(retTuple.begin(),retTuple.begin(),memSort);
-    //retTuple = mergeMinimizers(retTuple,text1,text2);
     sort(m1.begin(),m1.end(), mimCompareIndex);
     sort(m2.begin(),m2.end(), mimCompareIndex);
     pair<vector<pair<string,int>>,vector<pair<string,int>>> merger = make_pair(m1,m2);
     for(int i = 0; i < conf.miniMergerCount; i++){
       merger = mergeMinimizerPairs(merger.first,merger.second,conf);
     }
-    //merger = mergeMinimizerPairs(merger.first,merger.second,text1,text2);
-    //merger = mergeMinimizerPairs(merger.first,merger.second,text1,text2);
-    cout << "merger done" << endl;
     m1 = merger.first;
     m2 = merger.second;
     cout << "sorted minimems" << endl;
@@ -253,72 +212,33 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   for(int i = 0; i < m1.size(); i++){
     auto x = m1[i];
     auto y = m2[i];
-      //cout << "Comparing: " << x.first << " & " << y.first;
-      if(x.first.compare(y.first) == 0){
-        //m2.erase(m2.begin(), m2.begin()+i);
-        //i = 0;
-
-
-        // if(retRaw.first.size() > 0){
-        //   if(retRaw.first.back() == retRaw.second.back()){
-        //     int a,b,c;
-        //     int l = x.first.length();
-        //     tie(a,b,c) = retTuple.back();
-
-        //     if(x.second - l <= a+c && x.second-l >= a &&
-        //        y.second - l <= b+c && y.second-l >= b){
-        //       //retTuple.pop_back();
-        //       //retTuple.push_back(make_tuple(a,b,(l+c)-((a+c+1)-(x.second))));
-        //     }
-        //   }
-        // }
-        if(unique){
-          int end = ((conf.text1.size()-1 < x.second + x.first.length()-1+20)? 1 : x.first.length()-1+20);
-          int end2 = ((conf.text2.size()-1 < y.second + y.first.length()-1+20)? 1 : y.first.length()-1+20);
-          auto r1 = b_rank(x.second+end) - b_rank(x.second+1);
-          auto r2 = b_rank2(y.second+end2) - b_rank2(y.second+1);
-          if(r1 > 0 || r2 > 0){
-            continue;
-          }
+    if(x.first.compare(y.first) == 0){
+      if(unique){
+        int end = ((conf.text1.size()-1 < x.second + x.first.length()-1+20)? 1 : x.first.length()-1+20);
+        int end2 = ((conf.text2.size()-1 < y.second + y.first.length()-1+20)? 1 : y.first.length()-1+20);
+        auto r1 = b_rank(x.second+end) - b_rank(x.second+1);
+        auto r2 = b_rank2(y.second+end2) - b_rank2(y.second+1);
+        if(r1 > 0 || r2 > 0){
+          continue;
         }
-        auto tup = make_tuple(x.second, y.second, x.first.length());
-        //cout << "pushed";
-        retRaw.first.push_back(x);
-        retRaw.second.push_back(y);
-        retTuple.push_back(tup);
-
-        if(unique){
-          for(int a = x.second; a < x.second + x.first.length(); a++){
-            bv[a] = 1;
-          }
-          for(int b = y.second; b < y.second + y.first.length(); b++){
-            bv2[b] = 1;
-          }
-        }
-        //break;
       }
-      //      cout << endl;
-      // if(x.first.length() > 0 && y.first.length() > 0 && x.first.at(0) != y.first.at(0)){
-      //	break;
-      //}
-    
-  }
+      auto tup = make_tuple(x.second, y.second, x.first.length());
+      retRaw.first.push_back(x);
+      retRaw.second.push_back(y);
+      retTuple.push_back(tup);
 
-  cout << "ret muts" << endl;
-  return make_pair(retTuple,retRaw);
-}
-vector<tuple<int,int,int>> mergeMinimizers(vector<tuple<int,int,int>> mini, string text1, string text2){  
-  int a,b,c,i,j,k;
-  for(int x = 1; x < mini.size(); x++){
-    tie(a,b,c) = mini.at(x-1);
-    tie(i,j,k) = mini.at(x);
-    if(i-a == j-b && a+c >= i && b+c >= j){
-      mini.at(x) = make_tuple(a,b,c+abs(c-k));
-      mini.erase(mini.begin()+x-1);
-      x--;
+      if(unique){
+        for(int a = x.second; a < x.second + x.first.length(); a++){
+          bv[a] = 1;
+        }
+        for(int b = y.second; b < y.second + y.first.length(); b++){
+          bv2[b] = 1;
+        }
+      }
     }
   }
-  return mini;
+  cout << "ret muts" << endl;
+  return make_pair(retTuple,retRaw);
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vector<pair<string,int>> mini1, vector<pair<string,int>> mini2, Configuration conf){
   int a,b,c,i,j,k;
@@ -326,11 +246,8 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vect
   set<pair<string,int>> retMini2;
   cout << "merger" << endl;
   int count = 0;
-  // for(auto m : mini1){
-	//   cout << m.first << "," << m.second << endl;
-  // }
   for(int x = 0; x < mini1.size(); x++){
-     for(int y = 0; y < mini2.size(); y++){
+    for(int y = 0; y < mini2.size(); y++){
       if(mini1.at(x).first.compare(mini2.at(y).first) != 0) continue;
       if(x > 0 && y > 0){
         a = mini1.at(x-1).second;
@@ -341,26 +258,20 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vect
         j = mini2.at(y).second;
         k = mini1.at(x).first.length();
       }
-      //if(a+c < i && b+c< j || c < 1 || k < 1)  continue;
       if((x > 0 && y > 0) && (i-a == j-b && a+c >= i && b+c >= j && a+c <= i+k && b+c <= j+k)){
         string f = mini1.at(x-1).first;
         string e = mini1.at(x).first;
         int d = a+c-i;
         int l = abs(d)+1;
         string merged = conf.text1.substr(a,c+k-l);
-        // cout << "merged: " << merged << " (" << a << "," << i << ")" <<endl;
-        // cout << "overlap: "<< l << " new len: " << c+k-l << endl;
-        // cout << "from: " << f << " and " << e << endl;
         if(merged.compare(conf.text2.substr(b,c+k-l)) != 0) continue;
         count++;
         retMini1.insert(retMini1.end(),make_pair(merged,a));
         retMini2.insert(retMini2.end(),make_pair(merged,b));
-        // cout << "pushed " << merged << ", (" <<a << "," << b << endl;
       }
       else{
         retMini1.insert(retMini1.end(),mini1.at(x));
         retMini2.insert(retMini2.end(),mini2.at(y));
-        //cout << "PUSHED " << mini1.at(x).first << ", (" <<mini1.at(x).second << "," << mini2.at(y).second << endl;
       }
     }
   }
@@ -379,7 +290,6 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
   set<tuple<int,int,int>> miniMemsSet;
   vector<tuple<int,int,int>> miniMems;
   vector<vector<tuple<int,int,int>>> miniMemThreads(omp_get_max_threads());
-  //mini = mergeMinimizers(mini, text, text2);
 #pragma omp parallel for
   for(int a = 0; a < mini.size(); a++){
     int i,j,k;
@@ -408,7 +318,6 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
   for(auto m : miniMems){
     int i,j,k;
     tie(i,j,k) = m;
-    //cout << "minimem: (" << i << "," << j << "," << k << ") "<<endl;
   }
   return miniMems;
 }
@@ -420,16 +329,14 @@ vector<int> createLCPFromPLCP(vector<int> PLCP, vector<pair<int,int>> SA){
   return LCP;
 }
 /** Works correctly, not optimal for space as per reference paper.
- By definition: PLCP[SA[j]] = LCP[j].
+    By definition: PLCP[SA[j]] = LCP[j].
 */
 pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string text, bool lcp, vector<pair<int,int>> SA, bool direction){
   vector<int> phi(SA.size());
   vector<int> PLCP(SA.size());
-  //cout << "SA size: " << SA.size() << endl;
   auto LF = mapLF(index, direction);
   string t = text;
   t.append("$");
-  //cout << "enter plcp" << endl;
   for(int j = 1; j < SA.size(); j++){
     if(SA[j].first % q == 0){
       phi[SA[j].first] = (SA[j-1].first);
@@ -438,7 +345,6 @@ pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string tex
   int ell = 0;
   for(int i = 0; i < floor((SA.size()-1)/q); i++){
     int j = phi[i];
-    //    cout << "j = " << j << ", i = " << i << endl;
     while(t.at(i*q+ell) == t.at(j+ell)){
       ell = ell+1;
     }
@@ -454,7 +360,6 @@ pair<vector<int>,vector<int>> createPLCP(BD_BWT_index<> index, int q, string tex
 }
 
 sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,vector<int>> PLCPLCP){
-  //  cout << "Enter partitioning" << endl;
   auto PLCP = PLCPLCP.first;
   auto LCP = PLCPLCP.second;
 
@@ -464,87 +369,9 @@ sdsl::int_vector<1> partitioning(int k, BD_BWT_index<> index, pair<vector<int>,v
   for(int i = 0; i < PLCP.size(); i++){
     if(LCP[i] < k){
       B[i] = 1;
-    }else{
-      //B[i] = 0;
     }
   }
   return B;
-}
-
-Interval suffixBinary(vector<pair<int,int>> SA, string text, string p, int d, vector<int64_t> C){
-  Interval ret;
-  int lowerBound = C[p.at(0)];
-  int upperBound = lowerBound;
-  int cmp = text.substr(SA[lowerBound].first,d).compare(p);
-  cout << "binary...";
-  while(cmp != 0){
-    if(cmp < 0){
-      lowerBound = (SA.size()-1 < lowerBound * 2)? SA.size()-1 : lowerBound*2;
-    }else if(cmp > 0){
-      //upperBound = lowerBound;
-      lowerBound = lowerBound - floor(lowerBound/4)-1;
-    }
-    cmp = text.substr(SA[lowerBound].first,d).compare(p);
-  }
-  cout << "done";
-  cmp = text.substr(SA[lowerBound].first,d).compare(p);
-  while(cmp == 0){
-    lowerBound--;
-    cmp = text.substr(SA[lowerBound-1].first,d).compare(p);
-  }
-  upperBound = lowerBound;
-  cmp = text.substr(SA[upperBound+1].first,d).compare(p);
-  while(cmp == 0){
-    upperBound++;
-    cmp = text.substr(SA[upperBound+1].first,d).compare(p);
-  }
-  cout << "...done" << p << endl;
-  return Interval(lowerBound, upperBound);
-}
-
-vector<Interval_pair> minimizerToBWTIntervalV2(vector<pair<string,int>> mini,int minimumDepth, vector<pair<int,int>> SA, vector<pair<int,int>> SAr, std::vector<int64_t> gc_arr, string text = ""){
-  vector<Interval_pair> P;
-  auto C = gc_arr;
-  unordered_set<int> stored;
-  string text2 = string(text.rbegin(), text.rend());
-  for(int j = 0; j < mini.size(); j++){
-    //    cout << "C[j] = " << C[mini[j].first.at(0)] << ", " << mini[j].first.at(0) << endl;
-    /* This can be optimized */
-    string revmini = string(mini[j].first.rbegin(), mini[j].first.rend());
-    // Interval i1 = suffixBinary(SA, text, mini[j].first, minimumDepth, C);
-    //Interval i2 = suffixBinary(SAr, text2, revmini, minimumDepth, C);
-    auto a = C[mini[j].first.at(0)];
-    if(a > 0){
-      a--;
-    }
-    while(text.substr(SA[a].first,minimumDepth).compare(mini[j].first) != 0 && a < text.size()-minimumDepth){
-      a++;
-    }
-    auto b = a;
-    while(text.substr(SA[b].first,minimumDepth).compare(mini[j].first) == 0 && b < text.size()-minimumDepth){
-      b++;
-    }
-    auto c = C[revmini.at(0)];
-    if(c > 0){
-      c--;
-    }
-    while(text2.substr(SAr[c].first,minimumDepth).compare(revmini) != 0 && c < text2.size()-minimumDepth){
-      c++;
-    }
-
-    auto d = c;
-    while(text2.substr(SAr[d].first,minimumDepth).compare(revmini) == 0 && d < text2.size()-minimumDepth){
-      d++;
-    }
-    if((P.size() == 0 || stored.count(a) == 0)) {
-      P.push_back(Interval_pair(a,b,c,d));
-      //P.push_back(Interval_pair(i1,i2));
-      //      cout << Interval_pair(a,b-1,c,d-1).toString() << endl;
-      stored.insert(a);
-    }
-  }
-  cout << "return p";
-  return P;
 }
 vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv, sdsl::int_vector<1> bvr, vector<pair<string,int>> mini, vector<pair<int,int>> SA, vector<pair<int,int>> SAr,BD_BWT_index<> index, pair<vector<int>,vector<int>> lcp1, pair<vector<int>,vector<int>> lcp2, string text = ""){
   // cout << "Enter minimizerToBWTInterval" << endl;
@@ -562,8 +389,6 @@ vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv
     int revOffset (mini[j].first.length()-1);
     auto s  = SA[i].second;
     auto s2 = SAr[ir-revOffset].second;
-    //auto s = i;
-    //auto s2 = ir-revOffset;
 
     int r1,r2,r3,r4;
     if(bv[s] == 1){
@@ -590,5 +415,5 @@ vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv
   }
   return P;
 }
-
 #endif
+ 
