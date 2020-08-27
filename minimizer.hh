@@ -94,10 +94,14 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<
   if(newtype){
     for(auto first : m1){
 	    if(b < m2.size()-1){
-      while(m2.at(b).first < first.first){
+        while(m2.at(b).first < first.first && b < m2.size()-1){
         b++;
       }
-      if(b+i < m2.size() && m2.at(b+i).first == first.first){
+      if(b+i > m2.size()-1){
+          i = 0;
+          continue;
+        }
+      if(b+i < m2.size()-1 && m2.at(b+i).first == first.first){
         m3.push_back(first);
         m4.push_back(m2.at(b));
         i++;
@@ -125,7 +129,7 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<
         while(m2.at(b).first < first.first){
           b++;
         }
-        if(b+i < m2.size() && m2.at(b+i).first == first.first){
+        if(b+i < m2.size()-1 && m2.at(b+i).first == first.first){
           m3.push_back(first);
           m4.push_back(m2.at(b));
           i++;
@@ -185,7 +189,6 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   sdsl::int_vector<1> bv2(conf.text2.length()+1, 0, 1);
   sdsl::rank_support_v<1> b_rank2(&bv2);
   sdsl::bit_vector::select_1_type b_select2(&bv2);
-
   pair<vector<pair<string,int>>,vector<pair<string,int>>>  muts;
   if(unique){
     muts = minimizerAnchors(m1,m2);
@@ -196,7 +199,6 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   m2 = muts.second;
   bool doMerger = true;
   if(doMerger){
-    cout << "test" << endl;
     sort(m1.begin(),m1.end(), mimCompareIndex);
     sort(m2.begin(),m2.end(), mimCompareIndex);
     pair<vector<pair<string,int>>,vector<pair<string,int>>> merger = make_pair(m1,m2);
@@ -209,7 +211,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
     sort(m1.begin(),m1.end(), mimCompare);
     sort(m2.begin(),m2.end(), mimCompare);
   }
-  for(int i = 0; i < m1.size(); i++){
+  for(int i = 0; i < m1.size()-1; i++){
     auto x = m1[i];
     auto y = m2[i];
     if(x.first.compare(y.first) == 0){

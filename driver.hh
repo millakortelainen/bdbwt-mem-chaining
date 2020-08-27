@@ -1,6 +1,7 @@
 #ifndef BDBWT_MEM_CHAIN_DRIVER_HH
 #define BDBWT_MEM_CHAIN_DRIVER_HH
 #include "mem.hh"
+#include "chaining.hh"
 #include "minimizer.hh"
 #include "edlib.h"
 #include "util.hh"
@@ -35,7 +36,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     cout << mimimems.size() << endl;
     auto minimems = memifyMinimizers(mimimems, conf);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
-    break;
+    break; 
   }
   case 2: { //hybrid
     vector<pair<string,int>> mini1;
@@ -139,7 +140,7 @@ vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interva
   return chains;
 }
 pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
-  return chainingOutput(chains, Ipairs, conf.text1, conf.text2);
+  return chainingOutput(chains, Ipairs, conf);
 }
 vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs, bool verbose){
   auto chainints = chainintspair.first;
@@ -151,10 +152,10 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1){
-      ed = absent[i].reverse.right - absent[i].reverse.left+1;
+        ed = absent[i].reverse.right - absent[i].reverse.left+1;
     }
     else if(absent[i].reverse.left == -1){
-      ed = absent[i].forward.right - absent[i].forward.left+1;
+        ed = absent[i].forward.right - absent[i].forward.left+1;
     }else{
       EdlibAlignResult result = edlibAlign(conf.text1.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
                                            conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
@@ -179,7 +180,7 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
       absentRet.push_back(b);
     }
   }
-  sort(absentRet.begin(), absentRet.end(), intervalIntPairSort);
+  sort(absentRet.rbegin(), absentRet.rend(), intervalIntPairSort);
   cout << "total edit distance became: " << totalEditDistance << "/ " << conf.originalEditDistance << endl;
   return absentRet;
 }

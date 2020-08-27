@@ -42,16 +42,22 @@ struct Configuration {
   int minimumDepth;
   int minimizerWindowSize;
   int miniMergerCount = 0;
+  bool threadedBWT = true;
 
   int PLCPSparsity_q = 1;
   int maxSize = (index1.size() > index2.size())? index1.size() : index2.size();
   EdlibAlignConfig edlibConf;
   int originalEditDistance = -1;
+
+  bool printAbsentAndChains = false;
+  bool verboseEditDistances = false;
+  bool rawChains = false;
+  bool chainStringSegments = false;
   
 };
 struct memTupleSortStruct {
   bool operator() (const tuple<int,int,int>& set1, const tuple<int,int,int>& set2) const{
-    int i,j,d;
+    int i,j,d; 
     int x,y,z;
     tie(i,j,d) = set1;
     tie(x,y,z) = set2;
@@ -64,7 +70,7 @@ struct memTupleSortStruct {
         return (d > z);
       }
       else{
-        if(j != y){
+        if(j != y ){
           return (j < y);
         }
       }
@@ -164,7 +170,7 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
 
   vector<Interval_pair> absents;
   int fwdLastEnd = idx1.size()-1;
-  int bwdLastEnd = idx1.size()-1;
+  int bwdLastEnd = idx2.size()-1;
   
   if(chains[0].forward.right != fwdLastEnd || chains[0].reverse.right != bwdLastEnd){ // Either side of first(last) chain does not match the end of the input text.
     Interval_pair temp = Interval_pair(-1, -1, -1, -1);
@@ -197,13 +203,13 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
       temp.forward.right = fwdLastEnd;
       temp.forward.left = b+1;
     }
-    if(d != bwdLastEnd){
-      temp.reverse.right = bwdLastEnd;
-      temp.reverse.left = d+1;
-    }
     if(c == 0){
       temp.reverse.left = bwdLastEnd;
       temp.reverse.right = d-1;
+    }
+    if(d != bwdLastEnd){
+      temp.reverse.right = bwdLastEnd;
+      temp.reverse.left = d+1;
     }
     if(temp.forward.right < temp.forward.left){
       int t = temp.forward.right;
@@ -231,7 +237,6 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
     }
     absents.push_back(temp);
   }
-
   return(absents);
 }
   
@@ -310,3 +315,4 @@ int chainingMax(int &a, int &b, int &c, int &d){
 
 /* END_AUX */
 #endif
+ 

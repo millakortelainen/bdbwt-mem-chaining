@@ -11,8 +11,6 @@
 #include <stack>
 #include <bits/stdc++.h>
 #include "util.hh"
-#include "rsa1d.hh"
-#include "rsa2d.hh"
 #include <omp.h>
 using namespace std;
 bool verboseEnumeration = false;
@@ -21,7 +19,6 @@ bool verboseI = false;
 bool verboseMaximum = false;
 bool verboseSubroutine = false;
 bool verboseElement = false;
-bool verboseChaining = false;
 bool naiveCrossProduct = false;
 
 int minimumDepth = 1;
@@ -46,15 +43,6 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
  */
 vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt);
 
-/** Chaining function implements the chaining algorithm as defined in the paper "Chaining with Overlaps Revisited".
-The algorithm chains together all MEM matches given as input, and finds the best chaining alignment such that the chains do not themselves, while allowing overlaps on the text
-*/
-vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size);
-
-/** Output function for the chains.
- */
-pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs, string text, string text2);
-
 
 /** Enumerates the unique characters on the forward index of the BWT.
     param idx BD_BWT_index<> Burrows-wheeler transform
@@ -71,10 +59,8 @@ vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip);
 vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t,uint8_t>> A, vector<pair<uint8_t,uint8_t>> B);
 
 
-
-
-
-
+/** Checks for difference between the enumerations for the two indexes and intervals
+*/
 bool enum_diff(BD_BWT_index<> idxS, BD_BWT_index<> idxT, Interval_pair ip0, Interval_pair ip1, bool dir){ 
   if(dir){
     if(ip0.forward.left == ip0.forward.right == 1 || ip1.forward.left == ip1.forward.right == 1){
@@ -159,6 +145,9 @@ vector<uint8_t> enumerateRight(BD_BWT_index<> idx, Interval_pair ip){
   ret.insert(ret.end(), s.begin(), s.end());
   return ret;
 }
+
+/** Computes Cartesian product between A,(a,b) and B,(c,d), such that a =! c and b != d.
+ */
 vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t,uint8_t>> A, vector<pair<uint8_t,uint8_t>> B){
   set<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> bl;
   vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> retbl;
@@ -333,31 +322,21 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   int itrl2Size = idxT.size()-1;
   int maxDepth = -1;
   bool seeded = false;
-  // if(seed.size() == 1){
-  //   S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
-  // }else{
-  //   S = seed;
-  // }
+
   if(get<0>(seed).forward.left <= 0){
     S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
   }else{
     S.insert(seed);
     seeded = true;
-    //cout << "seeded BDBWR" << endl;
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
-    //if(depth > maxDepth && depth % 5 == 0){
-    //  maxDepth = depth;
-    // }
     S.erase(S.begin());
-    //cout << "begin "<< ip0.toString() << ip1.toString() << " depth: " << depth<< endl;
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
       continue;
     }
     bool diff = enum_diff(idxS,idxT,ip0,ip1,true);
     bool diff2;
-    //if(seeded) diff2 = enum_diff(idxS,idxT,ip0,ip1,false);
     if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || diff) { //Handle END symbols
       if(depth >= minimumDepth && !seeded){
         collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
@@ -487,10 +466,9 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   //}
 
   if(collectedSubroutineCalls.size() == 0 || seeded){
-    //cout << "Could not find any MEM's with significiant enough length" << endl;
     return ret;
   }
-   cout << "collected subroutine (" <<collectedSubroutineCalls.size()<<") elements with min depth of: " << minimumDepth << endl;
+  cout << "collected subroutine (" <<collectedSubroutineCalls.size()<<") elements with min depth of: " << minimumDepth << endl;
   vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
   int totalcount = 0;
 #pragma omp parallel for
@@ -517,6 +495,9 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   ret.insert(ret.end(), retSet.begin(),retSet.end());
   return ret;
 }
+
+/** Subroutine to batchOutput: Convert BDBWT MEM tuples into text-interval tuples
+ */
 vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<bool> marked, BD_BWT_index<> bwt){
   int i = 0;
   int n = bwt.size();
@@ -537,7 +518,7 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
 #pragma omp section
     {
       translate = radixSort(translate, 2);
-    }
+    } 
 #pragma omp section
     {
       pairs = radixSort(pairs,2);
@@ -563,128 +544,8 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
   }
   return ret;
 }
-vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
-  cout << "beginning chaining for " << A.size() << " intervals...";
-  rsa1d T_a = rsa1d(size); 
-  rsa1d T_b = rsa1d(size);
-  rsa2d T_c = rsa2d(size);
-  rsa2d T_d = rsa2d(size);
-  vector<pair<int, int>> C_a(A.size(), make_pair(0,0));
-  vector<pair<int, int>> C_b(A.size(), make_pair(0,0));
-  vector<pair<int, int>> C_c(A.size(), make_pair(0,0));
-  vector<pair<int, int>> C_d(A.size(), make_pair(0,0));
-  vector<pair<int, pair<int,int>>> C_p(A.size(), make_pair(0,make_pair(0,0)));
-  vector<pair<int, int>> C(A.size(), make_pair(0,0));
-  vector<pair<int, int>> E_1;
-  vector<pair<int, int>> E_2;
-  T_a.insertCell(make_pair(0,0),INT_MIN);
-  T_b.insertCell(make_pair(0,0),INT_MIN);
-  for(int j = 0; j < A.size(); j++){
-    T_a.insertCell(make_pair(A[j].reverse.right,j), INT_MIN);
-    T_b.insertCell(make_pair(A[j].reverse.right,j), INT_MIN);
-
-    auto key = make_pair(A.at(j).reverse.left - A.at(j).forward.left,j);
-    auto skey1 = A.at(j).forward.right;
-    auto skey2 = A.at(j).reverse.right;
-    if(verboseChaining) cout << "Initializer updating : " << key.first << ", " << key.second << ", with secondary keys: " << skey1 << " & " << skey2 << endl;
-    T_c.insertCell(key, skey1, INT_MIN);
-    T_d.insertCell(key, skey2, INT_MIN);
-    if(verboseChaining) cout << endl;
-
-    auto p1 = make_pair(A[j].forward.left, j);
-    auto p2 = make_pair(A[j].forward.right, j);
-    E_1.push_back(p1);
-    E_1.push_back(p2);
-    if(verboseChaining) cout << "Pushed E_1: " << p1.first << ", " << p1.second << " & " << p2.first << ", " << p2.second << endl;
-  }
-  T_a.sortArray();
-  T_b.sortArray();
-  T_c.sortArray();
-  T_d.sortArray();
-  if(verboseChaining) cout << "E_1 size: " << E_1.size() << endl;
-  T_a.upgrade(make_pair(0,0),0);
-  sort(E_1.begin(), E_1.end(), pairSort);
-
-  auto a = T_a.rangeMax(-1,-1); //Initializing variable types.
-  auto b = T_b.rangeMax(-1,-1);
-  auto c = T_c.rangeMax(-1,-1,-1,-1);
-  auto d = T_d.rangeMax(-1,-1,-1,-1);
-  cout << "chaining initializer done" << endl;
-  for(int i = 0; i < E_1.size(); i++){
-    auto e = E_1[i];
-    if(verboseChaining) cout << E_1[i].first << endl;
-    int j = e.second;
-    Interval_pair I = A[j];
-    auto rlfl = I.reverse.left - I.forward.left;
-    if(verboseChaining) cout << A[j].toString() << endl;
-    if(verboseChaining) cout << "i: " << i << ", j: " << j << endl;
-    if(verboseChaining) cout << "I.forward.left == E_1[i].first == " << I.forward.left << " == " << E_1[i].first << endl;
-    if(I.forward.left == E_1[i].first){
-      if(verboseChaining) cout <<"Interval: " << I.toString() << endl; 
-#pragma omp parallel sections
-      {
-#pragma omp section
-        {
-          a = T_a.rangeMax(0,			I.reverse.left); //I.reverse.left-1 causes failure when (reverse.left = forward.left = 0) with zeroth-index-indexing
-        }
-#pragma omp section
-        {
-          b = T_b.rangeMax(I.reverse.left,	I.reverse.right);
-        }
-#pragma omp section
-        {
-          c = T_c.rangeMax(INT_MIN,		rlfl,	0, I.forward.right);
-        }
-#pragma omp section
-        {
-          d = T_d.rangeMax(rlfl+1,		INT_MAX,0, I.reverse.right);
-        }
-      }
-      
-      C_a[j].first = a.first.primary.second;	C_a[j].second = a.second; 
-      C_b[j].first = b.first.primary.second;	C_b[j].second = I.reverse.left + b.second; 
-      C_c[j].first = c.first.primary.second;	C_c[j].second = I.forward.left + c.second;
-      C_d[j].first = d.first.primary.second;	C_d[j].second = I.reverse.left + d.second;
-      
-      if(verboseChaining) cout << "maxCandinates: "
-                               << C_a[j].second << "("<< C_a[j].first << "),"
-                               << C_b[j].second << "("<< C_b[j].first << "),"
-                               << C_c[j].second << "("<< C_c[j].first << "),"
-                               << C_d[j].second << "("<< C_d[j].first << ")," << endl;
-      
-      auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-      if     (C_a[j].second == max) C[j] = C_a[j];
-      else if(C_b[j].second == max) C[j] = C_b[j];
-      else if(C_c[j].second == max) C[j] = C_c[j];
-      else if(C_d[j].second == max) C[j] = C_d[j];
-
-      auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
-      C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));
-      
-      if(verboseChaining) cout << "max C[j] = " << C[j].second << endl;
-      if(verboseChaining) cout << "C_p= " << cpsum << ", " << j << endl;
-      if(verboseChaining) cout << "I.forward.right = " << I.forward.right << " I forward.left = " << I.forward.left << " C_p = " << cpsum << endl;
-
-      auto upgsumL = (int)C[j].second-(int)I.forward.left;
-      T_c.upgrade(make_pair(rlfl, j), I.forward.right, upgsumL);
-      if(verboseChaining) cout << "upgraded T_c (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= " << j << A[j].toString() <<" into: " << upgsumL << endl;
-
-      auto upgsumR = (int)C[j].second-(int)I.reverse.left;
-      T_d.upgrade(make_pair(rlfl, j), I.forward.right, upgsumR);
-      if(verboseChaining) cout << "upgraded T_d (" << I.reverse.left - I.forward.left << ", " << I.forward.right << "), j= " << j << A[j].toString() <<" into: " << upgsumR << endl;  
-    }
-    else{
-      if(verboseChaining) cout << "Else statement, upgrade and update!" << endl;
-      T_a.upgrade(make_pair(I.reverse.right, j), C_p[j].first);
-      T_b.upgrade(make_pair(I.reverse.right, j), C[j].second- I.reverse.left);
-      T_c.update(make_pair(rlfl, j), I.forward.right, INT_MIN);
-      T_d.update(make_pair(rlfl, j), I.forward.right, INT_MIN);
-    }
-    if(verboseChaining) cout << "end \n";
-  }
-  if(verboseChaining) cout << "end2 \n";
-  return C_p;
-}
+/** Conversion from BDBWT MEM tuples into text-interval tuples.
+ */
 vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> index2, vector<tuple<int,int,int>> memVector, bool verbose = false){
   std::vector<struct occStruct> Ipairs;
   std::vector<struct occStruct> Ipairs2;
@@ -732,67 +593,14 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   }
   return retVector;
 }
-pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs, string text, string text2){
-  int maxIndex = 0;
-  int maxVal = 0;
-  for(int i = 0; i < chains.size(); i++){
-    int tempVal = chains[i].first;
-    if(tempVal > maxVal){
-      maxVal = tempVal;
-      maxIndex = i;
-    }
-  }
-  if(false){ //printing raw chains
-    for(int i = 0; i < chains.size(); i++){
-      cout <<"Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
-    }
-  }
-  vector<Interval_pair> chainIntervals;
-  vector<int> symcov;
-  chainIntervals.push_back(Ipairs.at(chains.at(maxIndex).second.second)); //pushing first chain where we begin the traceback.
-  symcov.push_back(chains.at(maxIndex).first);
-  int last = -1;
-  int i = chains[maxIndex].second.first;
-  for(int j = chains.size()-1; j >= 0; j--){
-    if(i < 0){
-      break;
-    }
-    if(chains.at(i).second.second >= 0){
-      auto I = Ipairs.at(chains.at(i).second.second);
-      if(chainIntervals.size() > 0 && chains.size() > 1 &&
-         chainIntervals.at(chainIntervals.size()-1).forward.left >= I.forward.left &&
-         chainIntervals.at(chainIntervals.size()-1).reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
-
-        symcov.push_back(chains.at(i).first);
-        chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
-        last = i;
-        i = chains[i].second.first;
-        if(last == 0){ //would print out same index again => chain is done.
-          break;
-        }
-      }
-    }
-  }
-  int count = 0;
-  for(auto c : chainIntervals){
-    auto a = c.forward;
-    auto b = c.reverse;
-    int d = c.forward.right - c.forward.left+1;
-    cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
-    //cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
-    count++;
-  }
-  cout << "total number of chains: " << count << ", total symmetric coverage: " << symcov.front() << endl;
-  return (make_pair(chainIntervals, symcov));
-}
-// Giving seeds an default value so we can easily leave it out if we don't use them.
+/** Giving seeds an default value so we can easily leave it out if we don't use them.
+ */
 vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Interval_pair,Interval_pair,int>> seeds = {make_tuple(Interval_pair(-1,-2,-1,-2),Interval_pair(-1,-2,-1,-2),-1)}){
   auto index = conf.index1;
   auto index2 = conf.index2;
   minimumDepth = conf.minimumDepth;
   vector<tuple<int,int,int>> mems;
-  bool threadedBWT = true;
-  if(threadedBWT){
+  if(conf.threadedBWT){
     vector<tuple<int,int,int>> memFilter;
     cout << "finding mems between indexes...";
     auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
@@ -815,10 +623,8 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     else{
 #pragma omp parallel for
       for(int i = 0; i < enumLeft.size(); i++){
-        //cout << "enter" << i << endl;
         auto retMem = bwt_mem2(conf, enumLeft.at(i));
         memThreads[omp_get_thread_num()].insert(memThreads[omp_get_thread_num()].end(), retMem.begin(), retMem.end());
-        //cout << "exit" << i << endl;
       }
     }
     int count = 0;
@@ -854,5 +660,4 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
   sort(bo.begin(), bo.end(), memSort); //overall Speed increase
   return bo;
 }
-
 #endif

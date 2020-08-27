@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include "mem.hh"
+#include "chaining.hh"
 #include "minimizer.hh"
 #include "edlib.h"
 #include <stdio.h>
@@ -48,8 +49,8 @@ int main(int argc, char *argv[]){
   auto chains = computeChains(conf, Ipairs);
   auto chainintsP = computeChainIntervals(conf, chains, Ipairs);
   auto chainints = chainintsP.first; 
-  auto absentEdits = computeEditDistancesForAbsentIntervals(conf, chainintsP, Ipairs, false);
-  auto combined = combine_MEM_and_absent_with_editDistances(conf, absentEdits, chainints, false);
+  auto absentEdits = computeEditDistancesForAbsentIntervals(conf, chainintsP, Ipairs, conf.verboseEditDistances);
+  auto combined = combine_MEM_and_absent_with_editDistances(conf, absentEdits, chainints, conf.printAbsentAndChains);
 }
 
 

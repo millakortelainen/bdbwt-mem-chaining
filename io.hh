@@ -110,6 +110,60 @@ Configuration readConfiguration(string filename){
   cout << "Minimizer merger count: " << minimizerMergerCount << endl;
   conf.miniMergerCount = minimizerMergerCount;
   return conf;
-  
+
+  getline(fa,line);
+  bool threadedBWT = true;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int threadedBWTint = strtol(parse.c_str(),NULL,10);
+  if(threadedBWT == 0){
+    threadedBWT = false;
+  }
+  cout << "BWT Threading: " << threadedBWT << endl;
+  conf.threadedBWT = threadedBWT;
+
+  getline(fa,line);
+  bool printAbsentAndChains = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int printAbsentAndChainsint = strtol(parse.c_str(),NULL,10);
+  if(printAbsentAndChains == 1){
+    printAbsentAndChains = true;
+  }
+  cout << "Verbose Chain and Absent sections: " << printAbsentAndChains << endl;
+  conf.printAbsentAndChains = printAbsentAndChains;
+  return conf;
+
+  getline(fa,line);
+  bool VerboseEditDistances = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int VerboseEditDistancesint = strtol(parse.c_str(),NULL,10);
+  if(VerboseEditDistances == 1){
+    VerboseEditDistances = true;
+  }
+  cout << "Verbose Chain and Absent sections: " << VerboseEditDistances << endl;
+  conf.verboseEditDistances = VerboseEditDistances;
+  return conf;
+
+  getline(fa,line);
+  bool rawChains = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int rawChainsint = strtol(parse.c_str(),NULL,10);
+  if(rawChains == 1){
+    rawChains = true;
+  }
+  cout << "Printing raw chains: " << rawChains << endl;
+  conf.rawChains = rawChains;
+  return conf;
+
+  getline(fa,line);
+  bool chainStringSegments = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int chainStringSegmentsint = strtol(parse.c_str(),NULL,10);
+  if(chainStringSegments == 1){
+    chainStringSegments = true;
+  }
+  cout << "Printing chains as strings: " << chainStringSegments << endl;
+  conf.chainStringSegments = chainStringSegments;
+  return conf;
+
 }
 #endif
