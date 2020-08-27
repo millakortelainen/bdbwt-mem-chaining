@@ -109,7 +109,6 @@ Configuration readConfiguration(string filename){
   int minimizerMergerCount = strtol(parse.c_str(),NULL,10);
   cout << "Minimizer merger count: " << minimizerMergerCount << endl;
   conf.miniMergerCount = minimizerMergerCount;
-  return conf;
 
   getline(fa,line);
   bool threadedBWT = true;
@@ -130,10 +129,9 @@ Configuration readConfiguration(string filename){
   }
   cout << "Verbose Chain and Absent sections: " << printAbsentAndChains << endl;
   conf.printAbsentAndChains = printAbsentAndChains;
-  return conf;
 
   getline(fa,line);
-  bool VerboseEditDistances = false;
+  bool VerboseEditDistances = false; 
   parse = line.substr(line.find(delimiter)+1, line.length());
   int VerboseEditDistancesint = strtol(parse.c_str(),NULL,10);
   if(VerboseEditDistances == 1){
@@ -141,7 +139,6 @@ Configuration readConfiguration(string filename){
   }
   cout << "Verbose Chain and Absent sections: " << VerboseEditDistances << endl;
   conf.verboseEditDistances = VerboseEditDistances;
-  return conf;
 
   getline(fa,line);
   bool rawChains = false;
@@ -152,7 +149,6 @@ Configuration readConfiguration(string filename){
   }
   cout << "Printing raw chains: " << rawChains << endl;
   conf.rawChains = rawChains;
-  return conf;
 
   getline(fa,line);
   bool chainStringSegments = false;
