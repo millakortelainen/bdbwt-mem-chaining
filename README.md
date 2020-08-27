@@ -27,7 +27,7 @@ Afterwards the rest of the code can be compiled with `make all`, which creates t
 The configuration file contains all the options available for running the algorithm (see example file: 'config')
 ### Configuration details
 |Field | Description |
-- | -	
+|---|---|
 |Text1| Path to the first fasta file.|
 |Index1| Integer Index of the sequence contained in the fasta (defaults to the last found if index is higher than actual amount in the file).
 |Text2| Path to the second fasta file.|
