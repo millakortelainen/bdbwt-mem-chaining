@@ -468,7 +468,7 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   if(collectedSubroutineCalls.size() == 0 || seeded){
     return ret;
   }
-  cout << "collected subroutine (" <<collectedSubroutineCalls.size()<<") elements with min depth of: " << minimumDepth << endl;
+  if(conf.verbosity > 2) cout << "collected subroutine (" <<collectedSubroutineCalls.size()<<") elements with min depth of: " << minimumDepth << endl;
   vector<vector<tuple<int,int,int>>> rettempThreadContainer(omp_get_max_threads());
   int totalcount = 0;
 #pragma omp parallel for
@@ -486,7 +486,7 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
       totalcount++;
     }
   }
-  cout<< "total count " << totalcount << endl;
+  if(conf.verbosity > 2) cout<< "total count " << totalcount << endl;
   for(auto i : rettempThreadContainer){
     for(auto j : i){
       retSet.insert(retSet.end(), j);
@@ -602,15 +602,12 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
   vector<tuple<int,int,int>> mems;
   if(conf.threadedBWT){
     vector<tuple<int,int,int>> memFilter;
-    cout << "finding mems between indexes...";
+    if(conf.verbosity > 2) cout << "finding mems between indexes...";
     auto enumLeft = enumerateLeft(index,Interval_pair(0, index.size()-1, 0, index.size()-1));
     if(enumLeft.at(0) == BD_BWT_index<>::END){
       enumLeft.erase(enumLeft.begin());
     }
     vector<vector<tuple<int,int,int>>> memThreads(omp_get_max_threads());
-    for(auto i : enumLeft){
-      cout << i << endl;
-    }
     if(seeds.size() > 1){
       vector<tuple<Interval_pair,Interval_pair,int>> seedsVector;
       copy(seeds.begin(), seeds.end(), back_inserter(seedsVector));
@@ -648,7 +645,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     mems = bwt_mem2(conf, BD_BWT_index<>::END);
   }
 
-  cout << "found mems," << mems.size() << "...";
+  if(conf.verbosity > 2) cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
 
   if(mems.size() == 0){
@@ -656,7 +653,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     return mems;
   }
   auto bo = batchOutput(index, index2, mems, false);
-  cout << "batchOutput into SA indices done" << "...";
+  if(conf.verbosity > 2) cout << "batchOutput into SA indices done" << "...";
   sort(bo.begin(), bo.end(), memSort); //overall Speed increase
   return bo;
 }

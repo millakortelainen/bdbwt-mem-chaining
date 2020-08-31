@@ -59,19 +59,26 @@ Configuration readConfiguration(string filename){
   Configuration conf;
   string line;
   ifstream fa(filename);
-  getline(fa,line);
+
   string delimiter = ">";
+
+  getline(fa,line);
   string parse = line.substr(line.find(delimiter)+1, line.length());
+  int verbosity = strtol(parse.c_str(),NULL,10);
+  conf.verbosity = verbosity;
+
+  getline(fa,line);
+  parse = line.substr(line.find(delimiter)+1, line.length());
   string filename1 = parse;
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int index1 = strtol(parse.c_str(),NULL,10);
-  cout << "Fasta1: " << filename1 << " [" << index1 << "]" << endl;
+  if(verbosity > 2) cout << "Fasta1: " << filename1 << " [" << index1 << "]" << endl;
   conf.text1 = readInputFromFasta(filename1, index1).at(0);
   conf.text1 = conf.text1.substr(0,conf.text1.length()-1);
-  cout <<">";
-  cout <<conf.text1.substr(0,30);
-  cout << "..." << endl;
+  if(verbosity > 2)cout <<">";
+  if(verbosity > 2) cout <<conf.text1.substr(0,30);
+  if(verbosity > 2)cout << "..." << endl;
 
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
@@ -79,85 +86,85 @@ Configuration readConfiguration(string filename){
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int index2 = strtol(parse.c_str(),NULL,10);
-  cout << "Fasta2: " << filename2 << " [" << index2 << "]" << endl;
+  if(verbosity > 2)cout << "Fasta2: " << filename2 << " [" << index2 << "]" << endl;
   conf.text2 = readInputFromFasta(filename2, index2).at(0);
   conf.text2 = conf.text2.substr(0,conf.text2.length()-1);
-  cout <<">";
-  cout << conf.text2.substr(0,30);
-  cout << "..." << endl;
+  if(verbosity > 2)cout <<">";
+  if(verbosity > 2)cout << conf.text2.substr(0,30);
+  if(verbosity > 2)cout << "..." << endl;
   
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int mode = strtol(parse.c_str(),NULL,10);
-  cout << "Computation mode: " << mode << endl;
+  if(verbosity > 2) cout << "Computation mode: " << mode << endl;
   conf.mode = mode;
 
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int size = strtol(parse.c_str(),NULL,10);
-  cout << "Minimum Depth / K-mer size: " << size << endl;
+  if(verbosity > 2)cout << "Minimum Depth / K-mer size: " << size << endl;
   conf.minimumDepth = size;
 
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int minimizerWinSize = strtol(parse.c_str(),NULL,10);
-  cout << "Window Size: " << minimizerWinSize << endl;
+  if(verbosity > 2) cout << "Window Size: " << minimizerWinSize << endl;
   conf.minimizerWindowSize = minimizerWinSize;
 
   getline(fa,line);
   parse = line.substr(line.find(delimiter)+1, line.length());
   int minimizerMergerCount = strtol(parse.c_str(),NULL,10);
-  cout << "Minimizer merger count: " << minimizerMergerCount << endl;
+  if(verbosity > 2)cout << "Minimizer merger count: " << minimizerMergerCount << endl;
   conf.miniMergerCount = minimizerMergerCount;
 
   getline(fa,line);
   bool threadedBWT = true;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int threadedBWTint = strtol(parse.c_str(),NULL,10);
-  if(threadedBWT == 0){
+  if(threadedBWTint == 0){
     threadedBWT = false;
   }
-  cout << "BWT Threading: " << threadedBWT << endl;
+  if(verbosity > 2) cout << "BWT Threading: " << threadedBWT << endl;
   conf.threadedBWT = threadedBWT;
 
   getline(fa,line);
   bool printAbsentAndChains = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int printAbsentAndChainsint = strtol(parse.c_str(),NULL,10);
-  if(printAbsentAndChains == 1){
+  if(printAbsentAndChainsint == 1){
     printAbsentAndChains = true;
   }
-  cout << "Verbose Chain and Absent sections: " << printAbsentAndChains << endl;
+  if(verbosity > 2)cout << "Verbose Chain and Absent sections: " << printAbsentAndChains << endl;
   conf.printAbsentAndChains = printAbsentAndChains;
 
   getline(fa,line);
   bool VerboseEditDistances = false; 
   parse = line.substr(line.find(delimiter)+1, line.length());
   int VerboseEditDistancesint = strtol(parse.c_str(),NULL,10);
-  if(VerboseEditDistances == 1){
+  if(VerboseEditDistancesint == 1){
     VerboseEditDistances = true;
   }
-  cout << "Verbose Chain and Absent sections: " << VerboseEditDistances << endl;
+  if(verbosity > 2)cout << "Verbose Chain and Absent sections: " << VerboseEditDistances << endl;
   conf.verboseEditDistances = VerboseEditDistances;
 
   getline(fa,line);
   bool rawChains = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int rawChainsint = strtol(parse.c_str(),NULL,10);
-  if(rawChains == 1){
+  if(rawChainsint == 1){
     rawChains = true;
   }
-  cout << "Printing raw chains: " << rawChains << endl;
+  if(verbosity > 2) cout << "Printing raw chains: " << rawChains << endl;
   conf.rawChains = rawChains;
 
   getline(fa,line);
   bool chainStringSegments = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int chainStringSegmentsint = strtol(parse.c_str(),NULL,10);
-  if(chainStringSegments == 1){
+  if(chainStringSegmentsint == 1){
     chainStringSegments = true;
   }
-  cout << "Printing chains as strings: " << chainStringSegments << endl;
+  if(verbosity > 2) cout << "Printing chains as strings: " << chainStringSegments << endl;
   conf.chainStringSegments = chainStringSegments;
   return conf;
 

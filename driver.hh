@@ -19,7 +19,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   case 1: { //Minimizer Only
     vector<pair<string,int>> mini1;
     vector<pair<string,int>> mini2;
-    cout << conf.minimumDepth << ", " << conf.minimizerWindowSize << endl;
+    if(conf.verbosity > 2) cout << conf.minimumDepth << ", " << conf.minimizerWindowSize << endl;
 #pragma omp parallel sections
     {
 #pragma omp section
@@ -31,9 +31,9 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
 	mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
       }
     }
-    cout << mini1.size() << "\t " << mini2.size() << endl;
+    if(conf.verbosity > 2) cout << mini1.size() << "\t " << mini2.size() << endl;
     auto mimimems = minimizerTuples(mini1,mini2,conf, false).first;
-    cout << mimimems.size() << endl;
+    if(conf.verbosity > 2) cout << mimimems.size() << endl;
     auto minimems = memifyMinimizers(mimimems, conf);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
     break; 
@@ -47,39 +47,39 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
 #pragma omp section
       {
         mini1 = minimizers(conf.text1, conf.minimumDepth, conf.minimizerWindowSize);
-	cout << "mini1 done" << endl;
+        if(conf.verbosity > 2) cout << "mini1 done" << endl;
       }
 #pragma omp section
       {
         mini2 = minimizers(conf.text2, conf.minimumDepth, conf.minimizerWindowSize);
-	cout << "mini2 done" << endl;
+        if(conf.verbosity > 2) cout << "mini2 done" << endl;
       }
 #pragma omp section
       {
         SA1 = buildSAfromBWT(conf.index1, true);
-	cout << "SA1 done" << endl;
+        if(conf.verbosity > 2) cout << "SA1 done" << endl;
       }
 #pragma omp section
       {
         SA2 = buildSAfromBWT(conf.index1, false);
-	cout << "SA2 done" << endl;
+        if(conf.verbosity > 2) cout << "SA2 done" << endl;
       }
 #pragma omp section
       {
         SA3 = buildSAfromBWT(conf.index2, true);
-	cout << "SA3 done" << endl;
+        if(conf.verbosity > 2) cout << "SA3 done" << endl;
       }
 #pragma omp section
       {
         SA4 = buildSAfromBWT(conf.index2, false);
-        cout << "SA4 done " << endl;
+        if(conf.verbosity > 2) cout << "SA4 done " << endl;
       }
     }
-    cout << "getting muts...";
+    if(conf.verbosity > 2) cout << "getting muts...";
     auto muts = minimizerTuples(mini1, mini2, conf, true).second;
     mini1 = muts.first;
     mini2 = muts.second;
-    cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
+    if(conf.verbosity > 2)cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;
     int k = conf.minimumDepth;
     int q = conf.PLCPSparsity_q;
     vector<pair<Interval_pair,string>> set1;
@@ -107,8 +107,8 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
 
       }
     }
-    cout << "got BWT Intervals" << endl;
-    cout << "set1 size: " << set1.size() << ", set2 size: " << set2.size() << endl;
+    if(conf.verbosity > 2)cout << "got BWT Intervals" << endl;
+    if(conf.verbosity > 2)cout << "set1 size: " << set1.size() << ", set2 size: " << set2.size() << endl;
     set<tuple<Interval_pair,Interval_pair,int>> seeds;
     // sort(set1.begin(),set1.end(),intervalSort);
     // sort(set2.begin(),set2.end(),intervalSort);
@@ -122,14 +122,14 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
         seeds.insert(make_tuple(set1[i].first, set2[i].first, set1[i].second.length()));
       }
     }
-    cout << "seeds size: " << seeds.size() << endl;
+    if(conf.verbosity > 1)cout << "seeds size: " << seeds.size() << endl;
     auto bo = bwt_to_int_tuples(conf, seeds);
     Ipairs = returnMemTuplesToIntervals(bo, false);
     break;
   }
   }
   chrono::steady_clock::time_point mems_end = chrono::steady_clock::now();
-  printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());
+  if(conf.verbosity > 2) printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());
   return Ipairs;
 }
 
@@ -142,7 +142,7 @@ vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interva
 pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
   return chainingOutput(chains, Ipairs, conf);
 }
-vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs, bool verbose){
+pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs, bool verbose){
   auto chainints = chainintspair.first;
   auto absent = absentIntervals(chainints, conf.index1, conf.index2); 
   vector<vector<pair<Interval_pair, int>>> absentEdits(omp_get_max_threads());
@@ -152,10 +152,16 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1){
-        ed = absent[i].reverse.right - absent[i].reverse.left+1;
+      ed = absent[i].reverse.right - absent[i].reverse.left+1;
+      if(ed > 0){
+        totalEditDistance += ed;
+      }
     }
     else if(absent[i].reverse.left == -1){
-        ed = absent[i].forward.right - absent[i].forward.left+1;
+      ed = absent[i].forward.right - absent[i].forward.left+1;
+      if(ed > 0){
+        totalEditDistance += ed;
+      }
     }else{
       EdlibAlignResult result = edlibAlign(conf.text1.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
                                            conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
@@ -168,11 +174,17 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
     int c = absent[i].reverse.left;
     int d = absent[i].reverse.right;
     int length = ((b-a) > (d - c))? (b-a) : (d-c);
-    if(verbose) cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
-    if(verbose) cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
+    if(conf.verbosity > 3) cout << "I: " << absent[i].toString() << "..." << setw(50-absent[i].toString().size()-1) << right;
+    if(conf.verbosity > 3) cout << setw(50-absent[i].toString().size()-1) << "ED: " << ed << "..."
                      << setw(18-to_string(ed).size()) <<"(ED)/|I|: " << to_string((round((ed / ((double)length+1))*10000)/10000)) << "..."
                      << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
     absentEdits[omp_get_thread_num()].push_back(make_pair(absent[i], ed));
+    if(a != 0 && c == 0){
+      totalEditDistance += a;
+    }
+    if(a == 0 && c != 0){
+      totalEditDistance += c;
+    }
   }
   for(auto a : absentEdits){
     for(auto b : a){
@@ -181,8 +193,8 @@ vector<pair<Interval_pair, int>> computeEditDistancesForAbsentIntervals(Configur
     }
   }
   sort(absentRet.rbegin(), absentRet.rend(), intervalIntPairSort);
-  cout << "total edit distance became: " << totalEditDistance << "/ " << conf.originalEditDistance << endl;
-  return absentRet;
+  if(conf.verbosity > 0) cout << "total edit distance: " << totalEditDistance << "/ " << conf.originalEditDistance << endl;
+  return make_pair(absentRet,totalEditDistance);
 }
 
 vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Configuration conf, vector<pair<Interval_pair, int>> absentEdits, vector<Interval_pair> chainints, bool verbose){
@@ -192,6 +204,9 @@ vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Confi
   vector<pair<Interval_pair, int>> combinedED;
   if(chainints[0].forward.left > absentEdits[0].first.forward.left){
     absentFirst = false;
+  }
+  if(conf.verbosity > 0){
+    verbose = true;
   }
   while(ci < chainints.size() || ai < absentEdits.size()){ // print all in order
     auto cint = chainints[ci];

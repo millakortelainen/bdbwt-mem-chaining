@@ -33,6 +33,7 @@ struct occStruct{
 };
 struct Configuration {
   int mode;
+  int verbosity = 1;
   std::string text1;
   std::string text2;
   BD_BWT_index<> index1;
@@ -137,7 +138,6 @@ vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
       auto idx = ((list[j].second) % r1) / r2;
       radix[idx].push_back(list[j]);
     }
-	
     int k = 0;
     for(int j = 0; j < rad; j++){
       while(!radix[j].empty()){
@@ -145,7 +145,7 @@ vector<struct occStruct> radixSort(vector<struct occStruct> list, int r){
 	radix[j].erase(radix[j].begin());
 	k++;
       }
-    } 
+    }
   }
   return list;
 }
@@ -157,8 +157,8 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   for(auto b : tup){
     int i,j,d;
     tie(i,j,d) = b;
-    Interval_pair temp(i,i+d-1, j,j+d-1);
-    Ipairs.push_back(temp);	 
+    Interval_pair temp(i,i+d, j,j+d);
+    Ipairs.push_back(temp);
   }
   if(sortIntervals){
     sort(Ipairs.begin(), Ipairs.end(), intervalSort);
@@ -166,29 +166,93 @@ vector<Interval_pair> returnMemTuplesToIntervals(vector<tuple<int,int,int>> tup,
   return Ipairs;
 }
 
-vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2){
+vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_index<>idx1, BD_BWT_index<> idx2){
+  vector<Interval> abF;
+  vector<Interval> abR;
+  vector<Interval_pair> abRet;
+  int i = 0;
+  int fwdEnd = idx1.size()-1;
+  int bwdEnd = idx2.size()-1;
+  Interval temp = Interval(-1, -1);
 
+  while(i < chains.size()){
+    temp = Interval(-1,-1);
+    auto a = chains[i].forward.left;
+    auto b = chains[i].forward.right;
+    if(b >= fwdEnd){
+      i++;
+      abF.push_back(temp);
+      fwdEnd = a-1;
+      continue;
+    }
+    temp.right = fwdEnd;
+    temp.left  = b+1;
+    fwdEnd = a-1;
+    abF.push_back(temp);
+    i++;
+  }
+  i = 0;
+  while(i < chains.size()){
+    temp = Interval(-1,-1);
+    auto a = chains[i].reverse.left;
+    auto b = chains[i].reverse.right;
+    if(b >= bwdEnd){
+      i++;
+      abR.push_back(temp);
+      bwdEnd = a-1;
+      continue;
+    }
+    temp.right = bwdEnd;
+    temp.left  = b+1;
+    bwdEnd = a-1;
+    abR.push_back(temp);
+    i++;
+  }
+  cout << "abF size: " << abF.size() << "abR size: " << abR.size() << endl;
+  auto temp2 = Interval_pair(-1,-1,-1,-1);
+  if(abF.back().left != 0){
+    temp2.forward.right = fwdEnd;
+    temp2.forward.left = 0;
+    abF.push_back(temp2.forward);
+    abR.push_back(temp2.reverse);
+  }else if(abR.back().left != 0){
+    temp2.reverse.right = bwdEnd;
+    temp2.reverse.left = 0;
+    abF.push_back(temp2.forward);
+    abR.push_back(temp2.reverse);
+  }
+  for(int i = 0; i < abF.size(); i++){
+    abRet.push_back(Interval_pair(abF[i], abR[i]));
+  }
+  return abRet;
+}
+vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2){
+  if(true){
+    return absentIntervalsV2(chains,idx1,idx2);
+  }
   vector<Interval_pair> absents;
   int fwdLastEnd = idx1.size()-1;
   int bwdLastEnd = idx2.size()-1;
-  
+  Interval_pair temp = Interval_pair(-1, -1, -1, -1);
+
   if(chains[0].forward.right != fwdLastEnd || chains[0].reverse.right != bwdLastEnd){ // Either side of first(last) chain does not match the end of the input text.
-    Interval_pair temp = Interval_pair(-1, -1, -1, -1);
     if(chains[0].forward.right != fwdLastEnd){
       temp.forward.left = chains[0].forward.right+1;
       temp.forward.right = fwdLastEnd;
       fwdLastEnd = chains[0].forward.left-1;
     }
-    if(!chains[0].reverse.right != bwdLastEnd){
+    if(chains[0].reverse.right != bwdLastEnd){
       temp.reverse.left = chains[0].reverse.right+1;
       temp.reverse.right = bwdLastEnd;
       bwdLastEnd = chains[0].reverse.left-1;
     }
     absents.push_back(temp);
   }
-    
   for(int i = 1; i < chains.size(); i++){
-    Interval_pair temp = Interval_pair(-1,-1,-1,-1);
+    //  int j = 1;
+    if(i >= 1){
+      temp = Interval_pair(-1,-1,-1,-1);
+    }
     auto ch = chains[i];
     auto a = ch.forward.left;
     auto b = ch.forward.right;

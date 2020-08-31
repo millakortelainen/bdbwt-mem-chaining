@@ -82,7 +82,7 @@ vector<pair<string,int>> minimizers(string t1, int k, int w){
   //  cout << km.first << endl;
     ret.push_back(km);
   }
-  cout << "found " << ret.size() << " minimizers" << endl;
+  //cout << "found " << ret.size() << " minimizers" << endl;
   sort(ret.begin(), ret.end(), minimizerLexSort);
   return ret;
 }
@@ -207,7 +207,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
     }
     m1 = merger.first;
     m2 = merger.second;
-    cout << "sorted minimems" << endl;
+    if(conf.verbosity > 2) cout << "sorted minimems" << endl;
     sort(m1.begin(),m1.end(), mimCompare);
     sort(m2.begin(),m2.end(), mimCompare);
   }
@@ -239,14 +239,14 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
       }
     }
   }
-  cout << "ret muts" << endl;
+  // cout << "ret muts" << endl;
   return make_pair(retTuple,retRaw);
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mergeMinimizerPairs(vector<pair<string,int>> mini1, vector<pair<string,int>> mini2, Configuration conf){
   int a,b,c,i,j,k;
   set<pair<string,int>> retMini1;
   set<pair<string,int>> retMini2;
-  cout << "merger" << endl;
+  if(conf.verbosity > 2) cout << "merger" << endl;
   int count = 0;
   for(int x = 0; x < mini1.size(); x++){
     for(int y = 0; y < mini2.size(); y++){
@@ -309,7 +309,7 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
     while(i+k < conf.text1.length() && j+k < conf.text2.length() && conf.text1.at(i+k) == conf.text2.at(j+k)){
       k++;
     }
-    miniMemThreads[omp_get_thread_num()].push_back(make_tuple(i,j,k));
+    miniMemThreads[omp_get_thread_num()].push_back(make_tuple(i,j,k-1));
   }
   for(auto mm : miniMemThreads){
     for(auto m2 : mm){

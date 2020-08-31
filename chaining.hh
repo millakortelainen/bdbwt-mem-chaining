@@ -28,7 +28,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
 
 
 vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
-  cout << "beginning chaining for " << A.size() << " intervals...";
+  //cout << "beginning chaining for " << A.size() << " intervals...";
   rsa1d T_a = rsa1d(size); 
   rsa1d T_b = rsa1d(size);
   rsa1d T_c = rsa1d(size);
@@ -69,7 +69,7 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   auto b = T_b.rangeMax(-1,-1);
   auto c = T_c.rangeMax(-1,-1);
   auto d = T_d.rangeMax(-1,-1);
-  cout << "chaining initializer done" << endl;
+  //cout << "chaining initializer done" << endl;
   for(int i = 0; i < E_1.size(); i++){
     auto e = E_1[i];
     int j = e.second;
@@ -101,10 +101,10 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
       C_d[j].first = d.first.primary.second;	C_d[j].second = I.reverse.left + d.second;
 
       auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-      if     (C_c[j].second == max) C[j] = C_c[j];
-      else if(C_a[j].second == max) C[j] = C_a[j];
-      else if(C_d[j].second == max) C[j] = C_d[j];
+      if     (C_a[j].second == max) C[j] = C_a[j];
+      else if(C_c[j].second == max) C[j] = C_c[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
+      else if(C_d[j].second == max) C[j] = C_d[j];
 
       auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
       C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));
@@ -128,7 +128,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   auto text2 = conf.text2;
   int maxIndex = 0;
   int maxVal = 0;
-  for(int i = 0; i < chains.size()-1; i++){
+  for(int i = 0; i < chains.size(); i++){
     int tempVal = chains[i].first;
     if(tempVal > maxVal){
       maxVal = tempVal;
@@ -146,7 +146,7 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   symcov.push_back(chains.at(maxIndex).first);
   int last = -1;
   int i = chains[maxIndex].second.first;
-  for(int j = chains.size()-1; j >= 0; j--){
+  for(int j = chains.size(); j >= 0; j--){
     if(i < 0){
       break;
     }
@@ -170,14 +170,14 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   for(auto c : chainIntervals){
     auto a = c.forward;
     auto b = c.reverse;
-    int d = c.forward.right - c.forward.left+1;
-    cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
+    int d = c.forward.right - c.forward.left;
+    if(conf.verbosity > 0) cout << "Chain["<< count <<"]: "<< c.toString() <<"\t\t symcov:" << symcov.at(count) << endl;
     if(conf.chainStringSegments){
-      cout << text.substr(a.left,d) <<",\t "<< text2.substr(b.left,d) << endl;
+      cout << text.substr(a.left,d+1) <<",\t "<< text2.substr(b.left,d+1) << endl;
     }
     count++;
   }
-  cout << "total number of chains: " << count << ", total symmetric coverage: " << symcov.front() << endl;
+  if(conf.verbosity > 0) cout << "total number of chains: " << count << ", total symmetric coverage: " << symcov.front() << endl;
   return (make_pair(chainIntervals, symcov));
 }
 #endif

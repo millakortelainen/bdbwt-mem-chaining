@@ -15,7 +15,6 @@ string mutateText(string text, int blockCounts, double targetSim){
   cout << "Target similarity = " << targetSim << endl;
   int editsLeft = (tlen-(tlen*targetSim));
   cout << "Doing "<< editsLeft << " edits" << endl;
-  
   for(auto t : text){
     alphabet.insert(t);
   }
@@ -50,10 +49,9 @@ string mutateText(string text, int blockCounts, double targetSim){
 	}
 
 	auto ind = distrib2(gen);
-	  
 	text[e] = changes.at(ind);
-	editsLeft--;	
-      }      
+	editsLeft--;
+      }
     }
   }
   return text;
