@@ -166,7 +166,18 @@ Configuration readConfiguration(string filename){
   }
   if(verbosity > 2) cout << "Printing chains as strings: " << chainStringSegments << endl;
   conf.chainStringSegments = chainStringSegments;
+
+  getline(fa,line);
+  bool recombAbsents = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int recombAbsentsInt = strtol(parse.c_str(),NULL,10);
+  if(recombAbsentsInt == 1){
+    recombAbsentsInt = true;
+  }
+  if(verbosity > 2) cout << "Recombining absent intervals: " <<  recombAbsents << endl;
+  conf.recombAbsents = recombAbsents;
   return conf;
+
 
 }
 #endif

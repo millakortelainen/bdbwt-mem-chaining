@@ -54,7 +54,8 @@ struct Configuration {
   bool verboseEditDistances = false;
   bool rawChains = false;
   bool chainStringSegments = false;
-  
+  bool recombAbsents = false;
+
 };
 struct memTupleSortStruct {
   bool operator() (const tuple<int,int,int>& set1, const tuple<int,int,int>& set2) const{
@@ -171,6 +172,7 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
   vector<Interval> abR;
   vector<Interval_pair> abRet;
   int i = 0;
+  int j = 0;
   int fwdEnd = idx1.size()-1;
   int bwdEnd = idx2.size()-1;
   Interval temp = Interval(-1, -1);
@@ -180,32 +182,27 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     auto a = chains[i].forward.left;
     auto b = chains[i].forward.right;
     if(b >= fwdEnd){
-      i++;
       abF.push_back(temp);
       fwdEnd = a-1;
-      continue;
-    }
+    }else{
     temp.right = fwdEnd;
     temp.left  = b+1;
     fwdEnd = a-1;
     abF.push_back(temp);
-    i++;
-  }
-  i = 0;
-  while(i < chains.size()){
-    temp = Interval(-1,-1);
-    auto a = chains[i].reverse.left;
-    auto b = chains[i].reverse.right;
-    if(b >= bwdEnd){
-      i++;
-      abR.push_back(temp);
-      bwdEnd = a-1;
-      continue;
     }
+
+    temp = Interval(-1,-1);
+    auto c = chains[i].reverse.left;
+    auto d = chains[i].reverse.right;
+    if(d >= bwdEnd){
+      abR.push_back(temp);
+      bwdEnd = c-1;
+    }else{
     temp.right = bwdEnd;
-    temp.left  = b+1;
-    bwdEnd = a-1;
+    temp.left  = d+1;
+    bwdEnd = c-1;
     abR.push_back(temp);
+  }
     i++;
   }
   cout << "abF size: " << abF.size() << "abR size: " << abR.size() << endl;
@@ -222,12 +219,13 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     abR.push_back(temp2.reverse);
   }
   for(int i = 0; i < abF.size(); i++){
+    if(abF[i].right > idx1.size()-1 || abR[i].right > idx2.size()-1) continue;
     abRet.push_back(Interval_pair(abF[i], abR[i]));
   }
   return abRet;
 }
 vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index<> idx1, BD_BWT_index<> idx2){
-  if(true){
+  if(false){
     return absentIntervalsV2(chains,idx1,idx2);
   }
   vector<Interval_pair> absents;

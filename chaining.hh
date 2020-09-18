@@ -153,8 +153,8 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
     if(chains.at(i).second.second >= 0){
       auto I = Ipairs.at(chains.at(i).second.second);
       if(chainIntervals.size() > 0 && chains.size() > 1 &&
-         chainIntervals.back().forward.left >= I.forward.left &&
-         chainIntervals.back().reverse.left >= I.reverse.left){ //Ensuring (weak) precedence
+         chainIntervals.back().forward.left > I.forward.left &&
+         chainIntervals.back().reverse.left > I.reverse.left){ //Ensuring (weak) precedence
 
         symcov.push_back(chains.at(i).first);
         chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));

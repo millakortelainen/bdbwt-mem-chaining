@@ -148,17 +148,49 @@ pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentInterval
   vector<vector<pair<Interval_pair, int>>> absentEdits(omp_get_max_threads());
   vector<pair<Interval_pair,int>> absentRet;
   int totalEditDistance = 0;
+  int recombEditDistance = 0;
+  if(conf.recombAbsents){
+    string reconF = "";
+    string reconB = "";
+    string appA = "";
+    string appB = "";
+
+    for(auto abs : absent){
+      cout << abs.toString() << endl;
+      if(abs.forward.left >= 0 && abs.forward.right >= 0){
+        appA = conf.text1.substr(abs.forward.left, abs.forward.size());
+        reconF.append(appA);
+        cout << "append A: "<< appA << endl;
+      }
+      if(abs.reverse.left >= 0 && abs.reverse.right >= 0){
+        appB = conf.text2.substr(abs.reverse.left, abs.reverse.size());
+        reconB.append(appB);
+        cout << "append B: "<< appB << endl;
+      }
+      // cout << endl;
+  }
+    if(reconF.length() > 0 && reconB.length() > 0){
+    EdlibAlignResult result = edlibAlign(reconF.c_str(), reconF.length()-1,
+                                         reconB.c_str(), reconB.length()-1,
+                                         conf.edlibConf);
+    cout << "Recombined ED: " << result.editDistance << endl;
+    recombEditDistance = result.editDistance;
+    cout << "Recombined Length: " << reconF.length() << ", " << reconB.length() << endl;
+    //cout << reconF;
+    edlibFreeAlignResult(result);
+    }
+  }
 #pragma omp parallel for
   for(int i = 0; i < absent.size(); i++){
     int ed;
-    if(absent[i].forward.left == -1){
-      ed = absent[i].reverse.right - absent[i].reverse.left+1;
+    if(absent[i].forward.left == -1 && absent[i].forward.right == -1){
+      ed = (absent[i].reverse.right - absent[i].reverse.left)+1;
       if(ed > 0){
         totalEditDistance += ed;
       }
     }
-    else if(absent[i].reverse.left == -1){
-      ed = absent[i].forward.right - absent[i].forward.left+1;
+    else if(absent[i].reverse.left == -1 && absent[i].reverse.right == -1){
+      ed = (absent[i].forward.right - absent[i].forward.left)+1;
       if(ed > 0){
         totalEditDistance += ed;
       }
@@ -194,6 +226,9 @@ pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentInterval
   }
   sort(absentRet.rbegin(), absentRet.rend(), intervalIntPairSort);
   if(conf.verbosity > 0) cout << "total edit distance: " << totalEditDistance << "/ " << conf.originalEditDistance << endl;
+  if(conf.recombAbsents){
+    return make_pair(absentRet,recombEditDistance);
+  }
   return make_pair(absentRet,totalEditDistance);
 }
 
@@ -205,7 +240,7 @@ vector<pair<Interval_pair, int>> combine_MEM_and_absent_with_editDistances(Confi
   if(chainints[0].forward.left > absentEdits[0].first.forward.left){
     absentFirst = false;
   }
-  if(conf.verbosity > 0){
+  if(conf.printAbsentAndChains){
     verbose = true;
   }
   while(ci < chainints.size() || ai < absentEdits.size()){ // print all in order

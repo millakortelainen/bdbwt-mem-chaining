@@ -170,15 +170,15 @@ vector<tuple<uint8_t,uint8_t,uint8_t,uint8_t>> cross_product(vector<pair<uint8_t
         allIncompatible = false;
         bl.insert(make_tuple(a1.first, a1.second, bi.first, bi.second));
       }
-      if((bi.first != a2.first && bi.second != a2.second)){
+      else if((bi.first != a2.first && bi.second != a2.second)){
         allIncompatible = false;
         bl.insert(make_tuple(a2.first, a2.second, bi.first, bi.second));
       }
-      if((a1.first == end && bi.first == end) || (a1.second == end && bi.second == end)){ //Handle END marker
+      else if((a1.first == end && bi.first == end) || (a1.second == end && bi.second == end)){ //Handle END marker
       	allIncompatible = false;
       	bl.insert(make_tuple(a1.first, a1.second, bi.first, bi.second));
       }
-      if((a2.first == end && bi.first == end) || (a2.second == end && bi.second == end)){ //Handle END marker
+      else if((a2.first == end && bi.first == end) || (a2.second == end && bi.second == end)){ //Handle END marker
       	allIncompatible = false;
       	bl.insert(make_tuple(a2.first, a2.second, bi.first, bi.second));
       }
@@ -551,6 +551,8 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
   std::vector<struct occStruct> Ipairs2;
   std::vector<bool> marked1(index.size(),false);
   std::vector<bool> marked2(index2.size(),false);
+  vector<struct occStruct> bl1;
+  vector<struct occStruct> bl2;
   vector<tuple<int,int,int>> retVector;
   int p = 0;
   for(auto m : memVector){
@@ -568,9 +570,17 @@ vector<tuple<int,int,int>> batchOutput(BD_BWT_index<> index, BD_BWT_index<> inde
     Ipairs.push_back(newOcc);
     Ipairs2.push_back(newOcc2);
   }
-  auto bl1 = batchLocate(Ipairs,marked1,index);
-  auto bl2 = batchLocate(Ipairs2,marked2,index2);
-  int maxkey = -1;
+#pragma omp parallel sections
+  {
+#pragma omp section
+    {
+      bl1 = batchLocate(Ipairs,marked1,index);
+    }
+#pragma omp section
+    {
+      bl2 = batchLocate(Ipairs2,marked2,index2);
+    }
+  }
   for(int k = 0; k < memVector.size(); k++){
     int i,j,d;
     tie(i,j,d) = memVector[bl1[k].second];

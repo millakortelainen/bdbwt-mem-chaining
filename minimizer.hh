@@ -184,11 +184,11 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
 
   sdsl::int_vector<1> bv(conf.text1.length()+1, 0, 1);
   sdsl::rank_support_v<1> b_rank(&bv);
-  sdsl::bit_vector::select_1_type b_select(&bv);
+  sdsl::select_support_mcl<1> b_select(&bv);
 
   sdsl::int_vector<1> bv2(conf.text2.length()+1, 0, 1);
   sdsl::rank_support_v<1> b_rank2(&bv2);
-  sdsl::bit_vector::select_1_type b_select2(&bv2);
+  sdsl::select_support_mcl<1> b_select2(&bv2);
   pair<vector<pair<string,int>>,vector<pair<string,int>>>  muts;
   if(unique){
     muts = minimizerAnchors(m1,m2);
@@ -197,8 +197,7 @@ pair< vector<tuple<int,int,int>> ,pair< vector<pair<string,int>> , vector<pair<s
   }
   m1 = muts.first;
   m2 = muts.second;
-  bool doMerger = true;
-  if(doMerger){
+  if(conf.miniMergerCount > 0){
     sort(m1.begin(),m1.end(), mimCompareIndex);
     sort(m2.begin(),m2.end(), mimCompareIndex);
     pair<vector<pair<string,int>>,vector<pair<string,int>>> merger = make_pair(m1,m2);
@@ -308,7 +307,7 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
     i = i2; j = j2; k = k2;
     while(i+k < conf.text1.length() && j+k < conf.text2.length() && conf.text1.at(i+k) == conf.text2.at(j+k)){
       k++;
-    }
+    } 
     miniMemThreads[omp_get_thread_num()].push_back(make_tuple(i,j,k-1));
   }
   for(auto mm : miniMemThreads){
@@ -379,8 +378,8 @@ vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv
   // cout << "Enter minimizerToBWTInterval" << endl;
   sdsl::rank_support_v<1> b_rank(&bv);
   sdsl::rank_support_v<1> b_rankr(&bvr);
-  sdsl::bit_vector::select_1_type b_select(&bv);
-  sdsl::bit_vector::select_1_type b_selectr(&bvr);
+  sdsl::select_support_mcl<1> b_select(&bv);
+  sdsl::select_support_mcl<1> b_selectr(&bvr);
 
   vector<pair<Interval_pair,string>> P;
   unordered_set<int> stored;
