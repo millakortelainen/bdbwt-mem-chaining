@@ -294,7 +294,7 @@ vector<tuple<int,int,int>> bwt_mem2_subroutine(BD_BWT_index<> idxS, BD_BWT_index
 
     for(int i = i_2.forward.left; i <= i_2.forward.right; i++){
       for(int j = i_4.forward.left; j <= i_4.forward.right; j++){
-        ret.push_back(make_tuple(i,j,depth));
+        ret.push_back(make_tuple(i,j,depth-1));
         if(verboseSubroutine) cout <<"[" <<omp_get_thread_num()<<"]" << "pushed result of: (" << i << ", " << j << ", " << depth << ")" << "from interval" << i_2.toString() << "\n";
       }
     }
@@ -315,7 +315,7 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   vector<pair<pair<Interval_pair,Interval_pair>,int>> collectedSubroutineCalls;
   vector<tuple<int,int,int>> ret;
   set<tuple<int,int,int>, memTupleSortStruct> retSet;
-  set<tuple<Interval_pair,Interval_pair,int>> S;
+  vector<tuple<Interval_pair,Interval_pair,int>> S;
   set<tuple<Interval_pair,Interval_pair,int>> processed;
   Interval_pair ip0, ip1; int depth = -1;
   int itrl1Size = idxS.size()-1;
@@ -324,24 +324,26 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   bool seeded = false;
 
   if(get<0>(seed).forward.left <= 0){
-    S.insert(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
+  S.push_back(make_tuple(Interval_pair(0,itrl1Size,0,itrl1Size),Interval_pair(0,itrl2Size,0,itrl2Size),0));
   }else{
-    S.insert(seed);
+    S.push_back(seed);
     seeded = true;
   }
   while(!S.empty()){
     tie(ip0,ip1,depth) = *S.begin();
     S.erase(S.begin());
     if((ip0.forward.right - ip0.forward.left+1) < 1 || (ip1.forward.right - ip1.forward.left+1) < 1){
-      continue;
+       continue;
     }
     bool diff = enum_diff(idxS,idxT,ip0,ip1,true);
-    bool diff2;
-    if(idxS.is_left_maximal(ip0) || idxT.is_left_maximal(ip1) || diff) { //Handle END symbols
+    if(diff && !seeded) { //Handle END symbols
       if(depth >= minimumDepth && !seeded){
         collectedSubroutineCalls.push_back(make_pair(make_pair(ip0,ip1),depth));
       }
-      if(seeded){
+    }
+    if(seeded){
+      //bool diff2 = enum_diff(idxS,idxT,ip0,ip1,false);
+      if(diff){
         auto rettemp = (bwt_mem2_subroutine(idxS,idxT,make_pair(ip0,ip1),depth));
         for(auto t : rettemp){ 
           ret.push_back(t);
@@ -386,7 +388,6 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
   //   int maxDelta 	= xForwardDelta + xForwardDelta2;
 
   //   for(auto y : I){
-
   //     int yForwardDelta = y.first.forward.right - y.first.forward.left;
   //     int yForwardDelta2= y.second.forward.right - y.second.forward.left;
   //     int zDelta 	= yForwardDelta + yForwardDelta2;
@@ -400,7 +401,10 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
     //ip0 = x.first;
     // ip1 = x.second;
     if(I.size() == 0){
-      if(verboseI) cout << "\t" << "No values in I" << "\n";
+      //if(true) cout << "\t" << "No values in I, going right" << "\n";
+
+
+
     }
     else{
       //  I.erase(x);
@@ -411,7 +415,6 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
       // cout << "coming form ->" << ip0.toString() << ip1.toString() << endl;
       for(auto y : I){
         //cout << "value in I: " << y.first.toString() << y.second.toString() << endl;
-          
         // if(y.first.forward.right > idxS.size()-1 || y.second.forward.right > idxT.size()-1){
         //   continue;
         // }
@@ -422,12 +425,12 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
            enum_diff(idxS,idxT,y.first,y.second,false)
            //(enum_diff(idxS,idxT,y.first,y.second,true) && seeded)
            ){  //Handle END symbols
-          S.insert(make_tuple(y.first,y.second, depth+1));
-          continue;
+          S.push_back(make_tuple(y.first,y.second, depth+1));
+          // continue;
         }
       }
     }
-    if(seeded && (!idxS.is_left_maximal(ip0) || !idxT.is_left_maximal(ip1))){
+    if(seeded){
       for(auto c : conf.alphabet){
         if(c == BD_BWT_index<>::END){
           continue;
@@ -435,20 +438,25 @@ vector<tuple<int,int,int>> bwt_mem2(Configuration conf, uint8_t startLabel = BD_
         Interval_pair i1 = idxS.right_extend(ip0,c);
         Interval_pair i2 = idxT.right_extend(ip1,c);
         if(i1.forward.left < 0 || i2.forward.left < 0){
-          continue; 
+          continue;
         }
         Ir.insert(make_pair(i1,i2));
+        //cout << "ir insert" << endl;
       }
       for(auto y : Ir){
-        if(!enum_diff(idxS,idxT,y.first,y.second,true)
-           || enumerateRight(idxS,y.first).back() != BD_BWT_index<>::END
-           || enumerateRight(idxT,y.second).back() != BD_BWT_index<>::END
+        if(enum_diff(idxS,idxT,y.first,y.second,true)
+           //  || enumerateLeft(idxS,y.first).back() != BD_BWT_index<>::END
+           //|| enumerateLeft(idxT,y.second).back() != BD_BWT_index<>::END
+           || !idxS.is_left_maximal(y.first)
+           || !idxT.is_left_maximal(y.second)
+           // || true
            ){  //Handle END symbols
-          S.insert(make_tuple(y.first,y.second, depth+1));
+          S.push_back(make_tuple(y.first,y.second, depth+1));
+          //cout << "ir s insert" << endl;
         }
       }
-    } 
-  }
+      }
+    }
     //Have to take into the special case where we it is impossible to extend in one direction, but other direction might still have valid extensions left. If left side doesn't have any valid extensions, it will get filtered out on the next iteration before pushing anything into the stack. Only checking for enumerateLeft() could result in case where left side only has one possible extending character, and would not be reliable here.
     //std::vector<uint8_t> e1 = enumerateRight(idxS, x.first);
     // cout << "b" << endl;
@@ -646,7 +654,7 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
     for(auto a : memFilter){
       uniqueTuples.insert(uniqueTuples.end(), a);
     }
-    mems.reserve(uniqueTuples.size()-1);
+    mems.reserve(uniqueTuples.size()+1);
     for(auto a : uniqueTuples){
       mems.emplace_back(a);
     }

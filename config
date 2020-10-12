@@ -1,11 +1,11 @@
 Verbosity > 1
-Text1	> test_data/random1m.fasta
+Text1	> test_data/mutated100k.fasta
 Index1	> 0
-Text2 	> test_data/random1m.fasta
+Text2 	> test_data/mutated100k.fasta
 Index2	> 0
 Mode 	> 2
-Depth	> 100
-Window 	> 100
+Depth	> 10
+Window 	> 10
 Mergers > 0
 BWTThrd > 1
 VerbCA  > 0

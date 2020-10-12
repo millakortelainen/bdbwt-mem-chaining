@@ -346,9 +346,9 @@ vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
   // vector<int> ISA(idxS.size(),-1);
   // SA[lfS.second] = idxS.size()-1;
   // ISA[idxS.size()-1] = lfS.second;
-  int currIndex = lfS.first[lfS.second];
+  int currIndex = 0;
   int k = 0;
-  //  cout << "index size:" << idxS.size() << endl;
+  //cout << "currIndex: " << currIndex << endl;
   while(k < idxS.size()){
     //cout << "currIndex= " << currIndex << endl;
     //cout<<idxS.forward_bwt_at(currIndex)<<endl;
@@ -365,7 +365,6 @@ vector<pair<int,int>> buildSAfromBWT(BD_BWT_index<> idxS, bool revIndexSA){
   for(int i = 0; i < retSA.size(); i++){
     ret.push_back(make_pair(retSA[i], retISA[i]));
   }
-  
   return ret;
 }
 

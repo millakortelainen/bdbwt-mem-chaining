@@ -58,7 +58,7 @@ public:
     int h;
     auto eq = hash.equal_range(i); // constant on average
     auto index = distance(hash.begin(),eq.first); //constant
-    return index   ;
+    return index;
   }
   /**
      Finds the maximum value in the given range of keys.

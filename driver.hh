@@ -32,11 +32,12 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     if(conf.verbosity > 2) cout << mini1.size() << "\t " << mini2.size() << endl;
-    auto mimimems = minimizerTuples(mini1,mini2,conf, false).first;
+    //auto mimimems = minimizerTuples(mini1,mini2,conf, false).first;
+    auto mimimems = minimizerBlobbing(mini1,mini2);
     if(conf.verbosity > 2) cout << mimimems.size() << endl;
     auto minimems = memifyMinimizers(mimimems, conf);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
-    break; 
+    break;
   }
   case 2: { //hybrid
     vector<pair<string,int>> mini1;
@@ -76,7 +77,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
       }
     }
     if(conf.verbosity > 2) cout << "getting muts...";
-    auto muts = minimizerTuples(mini1, mini2, conf, true).second;
+    auto muts = minimizerBlobbingUnique(mini1, mini2);
     mini1 = muts.first;
     mini2 = muts.second;
     if(conf.verbosity > 2)cout << "got muts\t " << mini1.size() << "," << mini2.size() << endl;

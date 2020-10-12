@@ -40,7 +40,6 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
   vector<pair<int, pair<int,int>>> C_p(A.size(), make_pair(0,make_pair(0,0)));
   vector<pair<int, int>> C(A.size(), make_pair(0,0));
   vector<pair<int, int>> E_1;
-  vector<pair<int, int>> E_2;
   T_a.insertCell(make_pair(0,0),INT_MIN);
   T_b.insertCell(make_pair(0,0),INT_MIN);
   for(int j = 0; j < A.size(); j++){
@@ -95,16 +94,16 @@ vector<pair<int,pair<int,int>>> chaining(vector<Interval_pair> A, int size){
           d = T_d.rangeMax(rlfl+1,		INT_MAX);
         }
       }
-      C_a[j].first = a.first.primary.second;	C_a[j].second = a.second; 
-      C_b[j].first = b.first.primary.second;	C_b[j].second = I.reverse.left + b.second; 
+      C_a[j].first = a.first.primary.second;	C_a[j].second = a.second;
+      C_b[j].first = b.first.primary.second;	C_b[j].second = I.reverse.left + b.second;
       C_c[j].first = c.first.primary.second;	C_c[j].second = I.forward.left + c.second;
       C_d[j].first = d.first.primary.second;	C_d[j].second = I.reverse.left + d.second;
 
-      auto max = chainingMax(C_a[j].second, C_b[j].second,C_c[j].second,C_d[j].second);
-      if     (C_a[j].second == max) C[j] = C_a[j];
-      else if(C_c[j].second == max) C[j] = C_c[j];
+      auto max = chainingMax(C_a[j].second, C_b[j].second, C_c[j].second, C_d[j].second);
+      if     (C_d[j].second == max) C[j] = C_d[j];
       else if(C_b[j].second == max) C[j] = C_b[j];
-      else if(C_d[j].second == max) C[j] = C_d[j];
+      else if(C_a[j].second == max) C[j] = C_a[j];
+      else if(C_c[j].second == max) C[j] = C_c[j];
 
       auto cpsum = C[j].second+I.forward.right-I.forward.left+1;
       C_p[j] = make_pair(cpsum, make_pair(C[j].first,j));
@@ -145,20 +144,25 @@ pair<vector<Interval_pair>,vector<int>> chainingOutput(vector<pair<int,pair<int,
   chainIntervals.push_back(Ipairs.at(chains.at(maxIndex).second.second)); //pushing first chain where we begin the traceback.
   symcov.push_back(chains.at(maxIndex).first);
   int last = -1;
-  int i = chains[maxIndex].second.first;
+  int i = maxIndex;
+  cout <<"Ret Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
+  i = chains[maxIndex].second.first;
   for(int j = chains.size(); j >= 0; j--){
-    if(i < 0){
+    if(i < 0 || last == 0){
       break;
     }
     if(chains.at(i).second.second >= 0){
       auto I = Ipairs.at(chains.at(i).second.second);
-      if(chainIntervals.size() > 0 && chains.size() > 1 &&
-         chainIntervals.back().forward.left > I.forward.left &&
-         chainIntervals.back().reverse.left > I.reverse.left){ //Ensuring (weak) precedence
+      if(chainIntervals.size() > 0 && chains.size() > 1
+         //&&
+         //chainIntervals.back().forward.left > I.forward.left &&
+         //chainIntervals.back().reverse.left > I.reverse.left
+         ){ //Ensuring (weak) precedence
 
         symcov.push_back(chains.at(i).first);
         chainIntervals.push_back(Ipairs.at(chains.at(i).second.second));
         last = i;
+        cout <<"Ret Chain["<< i << "]: " << chains[i].first << "," << chains[i].second.first << ":"<<chains[i].second.second << "\n";
         i = chains[i].second.first;
         if(last == 0){ //would print out same index again => chain is done.
           break;

@@ -56,12 +56,163 @@ struct mimsortIndex {
 };
 
 bool mimCompare (pair<string,int> first, pair<string,int> second){
-  return first.first < second.first;
+  if(first.first != second.first){
+    return first.first < second.first;
+  }
+  else{
+    return first.second < second.second;
+  }
 }
 bool mimCompareIndex (pair<string,int> first, pair<string,int> second){
   return first.second < second.second;
 }
 
+
+unordered_map<string,pair<vector<int>,vector<int>>> minimap;
+struct minimizerStruct {
+  string minimizer;
+  vector<int> occ1;
+  vector<int> occ2;
+};
+pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerBlobbingUnique(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+  vector<pair<string,int>> retA;
+  vector<pair<string,int>> retB;
+  auto smaller = ((m1.size() < m2.size())? m1.size() : m2.size());
+  //cout << "Smaller =" << smaller << endl;
+  for(int i = 0; i < smaller; i++){
+    minimap[m1[i].first].first.push_back(m1[i].second);
+    minimap[m2[i].first].second.push_back(m2[i].second);
+  }
+  if(m1.size() > smaller){
+    for(int i = smaller; i < m1.size(); i++){
+      minimap[m1[i].first].first.push_back(m1[i].second);
+    }
+  }else if(m2.size() > smaller){
+    for(int i = smaller; i < m2.size(); i++){
+      minimap[m2[i].first].second.push_back(m2[i].second);
+    }
+  }
+  for(const auto &c : minimap){ //O(|n|)
+    auto minLen = c.first.length();
+    if(!(c.second.first.size() > 0 && c.second.second.size() > 0)){ //O(1)
+      continue;
+    }else{
+      // cout << c.first << ", " << c.second.first[0] << endl;
+      //cout << c.first << ", " << c.second.second[0] << endl;
+      //cout << endl;
+      retA.push_back(make_pair(c.first,c.second.first[0]));
+      retB.push_back(make_pair(c.first,c.second.second[0]));
+    }
+  }
+  //cout << "Done blobs" << endl;
+  return make_pair(retA,retB);
+}
+
+
+vector<tuple<int,int,int>> minimizerBlobbing(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+  vector<tuple<int,int,int>> retTuple;
+  auto smaller = ((m1.size() < m2.size())? m1.size() : m2.size());
+  //cout << "Smaller =" << smaller << endl;
+  for(int i = 0; i < smaller; i++){
+      minimap[m1[i].first].first.push_back(m1[i].second);
+      minimap[m2[i].first].second.push_back(m2[i].second);
+  }
+  if(m1.size() > smaller){
+    for(int i = smaller; i < m1.size(); i++){
+      minimap[m1[i].first].first.push_back(m1[i].second);
+    }
+  }else if(m2.size() > smaller){
+    for(int i = smaller; i < m2.size(); i++){
+      minimap[m2[i].first].second.push_back(m2[i].second);
+    }
+  }
+
+  // for(auto a : m1){
+  //   minimap[a.first].first.push_back(a.second);
+  // }
+  // for(auto b : m2){
+  //   minimap[b.first].second.push_back(b.second);
+  // }
+ 
+  // for(const auto &c : minimap){
+  //   //cout << "Blob: " << c.first;
+  //   cout << "First: ";
+  //   for(auto e : c.second.first){
+  //     cout << e << ", ";
+  //   }
+  //   cout << "Second: ";
+  //   for(auto e : c.second.second){
+  //     cout << e << ", ";
+  //   }
+  //   cout << endl;
+  // }
+  // Blobs to tuples
+
+  //vector<int> crossVector (m1.size()*m2.size(),-1);
+  bool fancyType = false;
+  if(fancyType){
+
+      for(const auto &c : minimap){
+        int alpha = c.second.first.size();
+        int beta = c.second.second.size();
+        if(c.second.first.size() > 0 && c.second.second.size() > 0){
+          //int size = alpha*beta;
+          //cout << "size: " << alpha << ", " << beta << endl;
+          int size = (alpha*beta > alpha+beta)? alpha*beta : alpha+beta;
+          vector<int> crossVector ((size)*2,-1);
+          int i = 0;
+          int j = 1;
+          int d = alpha-1+beta-1;
+#pragma omp sections
+    {
+#pragma omp section
+          {
+            for(auto i1 : c.second.first){
+              for(int x = 0; x < beta; x++){
+                //cout << "i = " << i << endl;
+                crossVector[i] = i1;
+                i = i+2;
+              }
+              //cout << "---" << endl;
+            }
+          }
+#pragma omp section
+          {
+            for(auto i2 : c.second.second){
+              for(int x = 0; x < alpha; x++){
+                //cout << "j+(x*d)= " << j+(x*d) << endl;
+                crossVector[j + ((x*beta))] = i2;
+              }
+              j = j+2;
+              //cout << "---" << endl;
+            }
+          }
+    }
+          //cout << "vector done" << endl;
+          int k = 0;
+          while(k < crossVector.size()){
+            retTuple.push_back(make_tuple(crossVector[k], crossVector[k+1],c.first.length()));
+            k = k+2;
+          }
+        }
+      }
+  }else{
+    for(const auto &c : minimap){ //O(|n|)
+      auto minLen = c.first.length();
+      if(!(c.second.first.size() > 0 && c.second.second.size() > 0)){ //O(1)
+        continue;
+      }
+      for(auto i1 : c.second.first){ //O(k log n)
+        for(auto i2 : c.second.second){ 
+          //cout << "BlobTuple: " << i1 << ", " << i2 << ", " << minLen << endl;
+          retTuple.push_back(make_tuple(i1,i2,minLen-1)); //O(1)
+        }
+      }
+    }
+  }
+  cout << "Done blobs" << endl;
+  return retTuple;
+}
 vector<pair<string,int>> minimizers(string t1, int k, int w){
   //  cout << "enter minimizer";
   vector<pair<string,int>> kmers((t1.size()));
@@ -71,48 +222,62 @@ vector<pair<string,int>> minimizers(string t1, int k, int w){
 
   for(int i = 0; i < t1.size()-k; i++){
     kmers.push_back(make_pair(t1.substr(i,k),i));
+    //minimizers.insert(kmers.back());
     if(i >= w){
       minimizer = min_element(kmers.end()-w,kmers.end(),mimCompare);
       auto mini = *minimizer;
-        minimizers.insert(mini);
+      minimizers.insert(mini);
       }
   }
   // cout << "minimizers: " << endl;
   for(auto km : minimizers){
-  //  cout << km.first << endl;
+    //  cout << km.first << ", " << km.second << endl;
     ret.push_back(km);
   }
   //cout << "found " << ret.size() << " minimizers" << endl;
-  sort(ret.begin(), ret.end(), minimizerLexSort);
+  //sort(ret.begin(), ret.end(), minimizerLexSort);
   return ret;
 }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> mutualMinimizers(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
   vector<pair<string,int>> m3, m4;
   int b = 0;
-  int i = 0;
+  int c = 0;
   auto newtype = true;
-  if(newtype){
-    for(auto first : m1){
-	    if(b < m2.size()-1){
-        while(m2.at(b).first < first.first && b < m2.size()-1){
+  if(!newtype){
+    for(int a = 0; a < m1.size(); a++){
+      auto first = m1[a];
+      while(m2.at(b).first < first.first && b < m2.size()-1){
         b++;
       }
-      if(b+i > m2.size()-1){
-          i = 0;
-          continue;
+      c = 0;
+      while(b+c < m2.size() && m2.at(b+c).first == first.first){
+        if(m2.at(b+c).first == first.first){
+          m3.push_back(first);
+          m4.push_back(m2.at(b+c));
+          c++;
+        }else{
+          c++;
         }
-      if(b+i < m2.size()-1 && m2.at(b+i).first == first.first){
-        m3.push_back(first);
-        m4.push_back(m2.at(b));
-        i++;
-      }else{
-        i = 0;
-      }
 	    }
     }
     return make_pair(m3,m4);
+  }else{
+    int i = 0;
+    int j = 0;
+    while(i < m1.size()-1 || j < m2.size()-1){
+      if(i < m1.size()-1 && j < m2.size()-1 && m1.at(i).first == m2.at(j).first){
+        m3.push_back(m1.at(i));
+        m4.push_back(m2.at(j));
+        i++; j++;
+      }else if(j < m2.size() && m1.at(i) > m2.at(j)){
+        j++;
+      }else if(i < m1.size() && m1.at(i) < m2.at(j)){
+        i++;
+      }
+    }
+    return(make_pair(m3,m4));
   }
-}
+ }
 pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
   vector<pair<string,int>> m3, m4;
   int b = 0;
@@ -136,7 +301,7 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerAnchors(vector<
         }else{
           i = 0;
         }
-	    }	
+	    }
     }
     return make_pair(m3,m4);
 
@@ -305,10 +470,10 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
       k2 = k2+1;
     }
     i = i2; j = j2; k = k2;
-    while(i+k < conf.text1.length() && j+k < conf.text2.length() && conf.text1.at(i+k) == conf.text2.at(j+k)){
+    while(i+k+1 < conf.text1.length() && j+k+1 < conf.text2.length() && conf.text1.at(i+k+1) == conf.text2.at(j+k+1)){
       k++;
     } 
-    miniMemThreads[omp_get_thread_num()].push_back(make_tuple(i,j,k-1));
+    miniMemThreads[omp_get_thread_num()].push_back(make_tuple(i,j,k));
   }
   for(auto mm : miniMemThreads){
     for(auto m2 : mm){
@@ -316,10 +481,6 @@ vector<tuple<int,int,int>> memifyMinimizers(vector<tuple<int,int,int>> mini, Con
     }
   }
   miniMems.assign(miniMemsSet.begin(), miniMemsSet.end());
-  for(auto m : miniMems){
-    int i,j,k;
-    tie(i,j,k) = m;
-  }
   return miniMems;
 }
 vector<int> createLCPFromPLCP(vector<int> PLCP, vector<pair<int,int>> SA){
@@ -405,7 +566,7 @@ vector<pair<Interval_pair,string>> minimizerToBWTInterval(sdsl::int_vector<1> bv
       r3 = b_selectr(b_rankr(s2));
     }
     r4 = b_rankr(r3)+1;
-    
+
     int a,b,c,d;
     a = r1;
     b = b_select(r2+1)-1;
