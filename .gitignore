@@ -34,7 +34,11 @@
 *#
 *~
 main
+rmq
+testSuite
+textMutator
 \.#*
 *\.out
 *\.output
 core
+jarnormq.cpp

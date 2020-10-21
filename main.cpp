@@ -16,6 +16,24 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
+
+  
+  // vector<pair<int, pair<int,int>>> retVec;
+  // int n = 10;
+  // int *keys_a = new int[n]; //Have to add extra space for 0 index.
+  // vector<int> keysa =  {0, 2, 3, 4, 5, 7, 10, 11, 20, 30, 40};
+  // vector<int> keys_v = {0, 0,   0,  9, 2, 1 , 2,  7, 0, 5, 6};
+  // for(int i = 0; i < n; i++) keys_a[i] = keysa[i];
+
+  // RMaxQTree *tree_a = new RMaxQTree(keys_a,n);
+
+  // for(int ta = 0; ta < n; ta++) tree_a->update(keys_a[ta+1],ta,keys_v[ta]);
+  // int ra, rb;
+  // tie(ra,rb) = tree_a->query(0,30);
+  // cout << "Returned " << keys_a[ra] << ", " << rb << endl;
+  // return 0;
+
+
   auto conf = readConfiguration(argv[1]);
   string text = conf.text1;
   string text2 = conf.text2;

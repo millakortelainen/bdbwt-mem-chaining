@@ -131,14 +131,32 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   }
   chrono::steady_clock::time_point mems_end = chrono::steady_clock::now();
   if(conf.verbosity > 2) printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());
+  if(conf.verbosity > 3){
+    for(auto i : Ipairs){
+      cout << i.toString() << "\t";
+      cout << conf.text1.substr(i.forward.left, i.forward.right - i.forward.left+1) << endl;
+    }
+  }
   return Ipairs;
 }
 
 vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interval_pair> Ipairs){
-  chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
-  auto chains = chaining(Ipairs, conf.maxSize);
-  chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
-  return chains;
+  if(!conf.useLinearRangeMax){
+    chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
+    auto chains = chainingNew(Ipairs);
+    cout << "returned from chains" << endl;
+    chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
+    cout << "Chaining(new) took " << chrono::duration_cast<chrono::milliseconds>(chains_end - chains_begin).count() << endl;
+    return chains;
+  }else{
+    chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
+    auto chains = chaining(Ipairs, conf.maxSize);
+    cout << "returned from chains" << endl;
+    chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
+    cout << "Chaining(old) took " << chrono::duration_cast<chrono::milliseconds>(chains_end - chains_begin).count() << endl;
+    return chains;
+  }
+  //return chains;
 }
 pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
   return chainingOutput(chains, Ipairs, conf);

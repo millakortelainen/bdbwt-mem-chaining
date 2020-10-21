@@ -5,7 +5,6 @@
 #include "include/BD_BWT_index.hh"
 #include <stdio.h>
 #include <cmath>
-#include "rsa1d.hh"
 #include "edlib.h"
 using namespace std;
 
@@ -55,8 +54,18 @@ struct Configuration {
   bool rawChains = false;
   bool chainStringSegments = false;
   bool recombAbsents = false;
+  bool useLinearRangeMax = false;
 
 };
+
+struct cell1d{
+  pair<int,int> primary;
+  int value;
+};
+static int cellcmp1d(struct cell1d first, struct cell1d last){
+  return (first.primary.first < last.primary.first)? 1:0;
+}
+
 struct memTupleSortStruct {
   bool operator() (const tuple<int,int,int>& set1, const tuple<int,int,int>& set2) const{
     int i,j,d; 
@@ -111,13 +120,16 @@ bool pairSort(const pair<int,int> &first, const pair<int,int> &second){
 }
 bool minimizerLexSort(const pair<string,int> &first, const pair<string,int> &second){
   return (first.first < second.first);
-}
+} 
 bool intervalSort(const Interval_pair &a, const Interval_pair &b){
   int aac = (a.reverse.left - a.forward.left);
   int bac = (b.reverse.left - a.forward.left);
   int maxa = (a.forward.right > a.reverse.right)? a.forward.right : a.reverse.right;
   int maxb = (b.forward.right > b.reverse.right)? b.forward.right : b.reverse.right;
   return (a < b);
+}
+bool newChainingSort(const Interval_pair &a, const Interval_pair &b){
+  return (a.forward.left < b.forward.left);
 }
 bool intervalIntPairSort(const pair<Interval_pair,int> &c, const pair<Interval_pair,int> &d){
   auto a = c.first;

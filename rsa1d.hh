@@ -78,7 +78,7 @@ public:
     m2 = array.size()-1;
 
     if(verbose) cout << "rangemax bounds: "<< min1 << ", " << max1 << "...";
-    if(verbose) cout << "hashed bounds: "<< m << ", " << m2 << "...";
+    if(false) cout << "hashed bounds: "<< m << ", " << m2 << "...";
     if(verbose) cout << "rangemax: array.size()=" << array.size() << endl;
     for(int i = m; i <= m2; i++){
       count++;
@@ -88,7 +88,7 @@ public:
       if(array[i].primary.first >= min1 && array[i].primary.first <= max1){
         int tempmax = array[i].value;
 	
-        if(tempmax > maxVal){
+        if(tempmax >= maxVal){
           maxVal = tempmax;
           maxCell = array[i];	  
         }

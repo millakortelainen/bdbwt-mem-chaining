@@ -172,11 +172,22 @@ Configuration readConfiguration(string filename){
   parse = line.substr(line.find(delimiter)+1, line.length());
   int recombAbsentsInt = strtol(parse.c_str(),NULL,10);
   if(recombAbsentsInt == 1){
-    recombAbsentsInt = true;
+    recombAbsents = true;
   }
   if(verbosity > 2) cout << "Recombining absent intervals: " <<  recombAbsents << endl;
   conf.recombAbsents = recombAbsents;
+
+  getline(fa,line);
+  bool linearRMax = false;
+  parse = line.substr(line.find(delimiter)+1, line.length());
+  int linearRMaxInt = strtol(parse.c_str(),NULL,10);
+  if(linearRMaxInt == 1){
+    linearRMax = true;
+  }
+  if(verbosity > 2) cout << "Using Linear RangeMaxQuery: " <<  linearRMax << endl;
+  conf.useLinearRangeMax = linearRMax;
   return conf;
+
 
 
 }
