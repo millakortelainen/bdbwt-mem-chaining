@@ -5,13 +5,16 @@ This algorithm takes two sequences as an input in the form of two fasta files. A
 
 For further technical details see [TBA]
 ## Used external libraries:
-All external libraries are packed into this repository
+All external libraries are packed into this repository.
+
 [BDBWT](https://github.com/algbio/bdbwt) and it's dependencies which are included in /include (BDBWT) and /sdsl-lite (SDSL) folders.
+
 [SDSL-lite](https://github.com/simongog/sdsl-lite)
 
 [Edlib](https://github.com/Martinsos/edlib) sequence alignment libary is used, and included under MIT licence. Folder "edlib" (and it's subfolders) are taken directly from said library and contain necessary source code and header file. Edlib works out of the box, and does not warrant additional  installation on this programs implementation.
 
 [OpenMP](https://www.openmp.org//) is used for implementing parallelization for the algorithms.
+
 [Seg2DagChainer](https://github.com/Anna-Kuosmanen/Seq2DagChainer/) We use the Range Maximum Query implementation contained in the repository, the code used is contained within "RMaxQTree.cpp" and "RMaxQTree.h", copied over from the repository.
 
 ## Installation and Usage
@@ -26,8 +29,8 @@ Afterwards the rest of the code can be compiled with `make all`, which creates t
 ```
 The configuration file contains all the options available for running the algorithm (see example file: 'config')
 ### Configuration details
-| Field     | Description                                                                                                                          |
-|-----------+--------------------------------------------------------------------------------------------------------------------------------------|
+| Field     | Description  
+| -  |- 
 | Text1     | Path to the first fasta file.                                                                                                        |
 | Index1    | Integer Index of the sequence contained in the fasta (defaults to the last found if index is higher than actual amount in the file). |
 | Text2     | Path to the second fasta file.                                                                                                       |
