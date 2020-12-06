@@ -41,3 +41,5 @@ textMutator
 *\.out
 *\.output
 core
+*\.swp
+*\.swo

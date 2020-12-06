@@ -1,0 +1,16 @@
+Verbosity > 1
+Text1	> test_data/short.fasta
+Index1	> 4
+Text2 	> test_data/short.fasta
+Index2	> 5
+Mode 	> 1
+Depth	> 4
+Window 	> 4
+Mergers > 0
+BWTThrd > 1
+VerbCA  > 0
+VerbED > 0
+RawChain > 0
+strChain > 0
+recombAbs > 0
+linearRMQ > 0

@@ -49,7 +49,7 @@ string convertTime(chrono::milliseconds ms){
   return var;
 }
 
-Configuration swapRandomSymbol(Configuration conf, int num){
+Configuration swapRandomSymbol(Configuration conf, int num, int seedinc1, int seedinc2){
   vector<char> s;
   for(auto a : conf.alphabet){
     s.push_back(a);
@@ -57,6 +57,8 @@ Configuration swapRandomSymbol(Configuration conf, int num){
   random_device rd;
   mt19937 gen(rd());
   mt19937 gen2(rd());
+  gen.seed(3000+seedinc1);
+  gen2.seed(6000+seedinc2);
   uniform_int_distribution<> distrib(0,conf.text2.length()-1);
   uniform_int_distribution<> distrib2(0,s.size()-1);
   for(int k = 0; k < num; k++){
@@ -100,6 +102,7 @@ pair<pair<chrono::milliseconds, int>,pair<chrono::milliseconds, int>> compute(Co
   auto ch = make_pair(chainingTime, absentEdits.second);
 
   edlibFreeAlignResult(result);
+
   return make_pair(el,ch);
 }
 int main(int argc, char *argv[]){
@@ -120,7 +123,7 @@ int main(int argc, char *argv[]){
     auto c = compute(conf);
     auto diff = c.first.first - c.second.first;
     cout << "edlibTime - chainingTime\t " << diff.count() << "ms." << endl;
-    conf = swapRandomSymbol(conf, editAmount);
+    conf = swapRandomSymbol(conf, editAmount,i,i);
     editsCount += editAmount;
     cout << endl;
     timeResults.push_back(make_pair(c.first.first,c.second.first));

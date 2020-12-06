@@ -33,7 +33,7 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
     }
     if(conf.verbosity > 2) cout << mini1.size() << "\t " << mini2.size() << endl;
     //auto mimimems = minimizerTuples(mini1,mini2,conf, false).first;
-    auto mimimems = minimizerBlobbing(mini1,mini2);
+    auto mimimems = minimizerBlobbing(conf,mini1,mini2);
     if(conf.verbosity > 2) cout << mimimems.size() << endl;
     auto minimems = memifyMinimizers(mimimems, conf);
     Ipairs = returnMemTuplesToIntervals(minimems, false);
@@ -144,22 +144,33 @@ vector<pair<int,pair<int,int>>> computeChains(Configuration conf, vector<Interva
   if(!conf.useLinearRangeMax){
     chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
     auto chains = chainingNew(Ipairs);
-    cout << "returned from chains" << endl;
+    //cout << "returned from chains" << endl;
     chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
     cout << "Chaining(new) took " << chrono::duration_cast<chrono::milliseconds>(chains_end - chains_begin).count() << endl;
     return chains;
+
   }else{
     chrono::steady_clock::time_point chains_begin = chrono::steady_clock::now();
     auto chains = chaining(Ipairs, conf.maxSize);
-    cout << "returned from chains" << endl;
+    //cout << "returned from chains" << endl;
     chrono::steady_clock::time_point chains_end = chrono::steady_clock::now();
     cout << "Chaining(old) took " << chrono::duration_cast<chrono::milliseconds>(chains_end - chains_begin).count() << endl;
     return chains;
   }
   //return chains;
 }
-pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chains, vector<Interval_pair> Ipairs){
-  return chainingOutput(chains, Ipairs, conf);
+pair<vector<Interval_pair>,vector<int>> computeChainIntervals(Configuration conf, vector<pair<int,pair<int,int>>> chainsInput, vector<Interval_pair> Ipairs){
+  auto chainsRet = chainingOutput(chainsInput, Ipairs, conf);
+  auto chains = chainsRet.first;
+
+/*  for(auto i = 0; i < chains.size(); i++){
+    EdlibAlignResult result = edlibAlign(conf.text1.substr(chains[i].forward.left, chains[i].forward.size()).c_str(), chains[i].forward.size(),
+                                           conf.text2.substr(chains[i].reverse.left, chains[i].reverse.size()).c_str(), chains[i].reverse.size(),
+                                           conf.edlibConf);
+    cout << "Chaining ED["<<i<<"]: "<< result.editDistance << endl;
+
+}*/
+return chainsRet;
 }
 pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentIntervals(Configuration conf, pair<vector<Interval_pair>,vector<int>> chainintspair, vector<Interval_pair> Ipairs, bool verbose){
   auto chainints = chainintspair.first;
@@ -199,26 +210,39 @@ pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentInterval
     edlibFreeAlignResult(result);
     }
   }
-#pragma omp parallel for
+//#pragma omp parallel for
   for(int i = 0; i < absent.size(); i++){
     int ed;
     if(absent[i].forward.left == -1 && absent[i].forward.right == -1){
-      ed = (absent[i].reverse.right - absent[i].reverse.left)+1;
-      if(ed > 0){
-        totalEditDistance += ed;
-      }
+      EdlibAlignResult result = edlibAlign("-", 1,
+                                           conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
+                                           conf.edlibConf);
+      
+    //  int ed2 = (absent[i].reverse.right - absent[i].reverse.left)+1;
+    //  cout << ed2 << ", " << absent[i].reverse.size() << endl;
+      totalEditDistance += ed;
     }
     else if(absent[i].reverse.left == -1 && absent[i].reverse.right == -1){
-      ed = (absent[i].forward.right - absent[i].forward.left)+1;
-      if(ed > 0){
-        totalEditDistance += ed;
-      }
+     // ed = (absent[i].forward.right - absent[i].forward.left)+1;
+     EdlibAlignResult result = edlibAlign(conf.text1.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
+                                         "-", 1,
+     					   conf.edlibConf);
+
+    //  int ed2 = (absent[i].forward.right - absent[i].forward.left)+1;
+    //  cout << ed2 << ", " << absent[i].forward.size() << endl;
+      totalEditDistance += ed;
     }else{
+
       EdlibAlignResult result = edlibAlign(conf.text1.substr(absent[i].forward.left, absent[i].forward.size()).c_str(), absent[i].forward.size(),
                                            conf.text2.substr(absent[i].reverse.left, absent[i].reverse.size()).c_str(), absent[i].reverse.size(),
                                            conf.edlibConf);
+
+      // int ed2 = (absent[i].forward.right - absent[i].forward.left)+1;
+      // cout << ed2 << ", " << absent[i].forward.size() << endl;
+      
       ed = result.editDistance;
       edlibFreeAlignResult(result);
+      totalEditDistance += ed;
     }
     int a = absent[i].forward.left;
     int b = absent[i].forward.right;
@@ -231,15 +255,15 @@ pair<vector<pair<Interval_pair, int>>,int> computeEditDistancesForAbsentInterval
                      << setw(20-to_string(round((ed / ((double)length+1)))).size()) << "max len: " << (length)+1 << endl;
     absentEdits[omp_get_thread_num()].push_back(make_pair(absent[i], ed));
     if(a != 0 && c == 0){
-      totalEditDistance += a;
+      //totalEditDistance += a;
     }
     if(a == 0 && c != 0){
-      totalEditDistance += c;
+      //totalEditDistance += c;
     }
   }
   for(auto a : absentEdits){
     for(auto b : a){
-      totalEditDistance += b.second;
+      //totalEditDistance += b.second;
       absentRet.push_back(b);
     }
   }

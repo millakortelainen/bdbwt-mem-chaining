@@ -131,7 +131,7 @@ Configuration readConfiguration(string filename){
   bool printAbsentAndChains = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int printAbsentAndChainsint = strtol(parse.c_str(),NULL,10);
-  if(printAbsentAndChainsint == 1){
+  if(printAbsentAndChainsint >= 1){
     printAbsentAndChains = true;
   }
   if(verbosity > 2)cout << "Verbose Chain and Absent sections: " << printAbsentAndChains << endl;
@@ -141,7 +141,7 @@ Configuration readConfiguration(string filename){
   bool VerboseEditDistances = false; 
   parse = line.substr(line.find(delimiter)+1, line.length());
   int VerboseEditDistancesint = strtol(parse.c_str(),NULL,10);
-  if(VerboseEditDistancesint == 1){
+  if(VerboseEditDistancesint >= 1){
     VerboseEditDistances = true;
   }
   if(verbosity > 2)cout << "Verbose Chain and Absent sections: " << VerboseEditDistances << endl;
@@ -151,7 +151,7 @@ Configuration readConfiguration(string filename){
   bool rawChains = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int rawChainsint = strtol(parse.c_str(),NULL,10);
-  if(rawChainsint == 1){
+  if(rawChainsint >= 1){
     rawChains = true;
   }
   if(verbosity > 2) cout << "Printing raw chains: " << rawChains << endl;
@@ -161,7 +161,7 @@ Configuration readConfiguration(string filename){
   bool chainStringSegments = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int chainStringSegmentsint = strtol(parse.c_str(),NULL,10);
-  if(chainStringSegmentsint == 1){
+  if(chainStringSegmentsint >= 1){
     chainStringSegments = true;
   }
   if(verbosity > 2) cout << "Printing chains as strings: " << chainStringSegments << endl;
@@ -171,7 +171,7 @@ Configuration readConfiguration(string filename){
   bool recombAbsents = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int recombAbsentsInt = strtol(parse.c_str(),NULL,10);
-  if(recombAbsentsInt == 1){
+  if(recombAbsentsInt >= 1){
     recombAbsents = true;
   }
   if(verbosity > 2) cout << "Recombining absent intervals: " <<  recombAbsents << endl;
@@ -181,7 +181,7 @@ Configuration readConfiguration(string filename){
   bool linearRMax = false;
   parse = line.substr(line.find(delimiter)+1, line.length());
   int linearRMaxInt = strtol(parse.c_str(),NULL,10);
-  if(linearRMaxInt == 1){
+  if(linearRMaxInt >= 1){
     linearRMax = true;
   }
   if(verbosity > 2) cout << "Using Linear RangeMaxQuery: " <<  linearRMax << endl;

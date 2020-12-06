@@ -193,7 +193,7 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     temp = Interval(-1,-1);
     auto a = chains[i].forward.left;
     auto b = chains[i].forward.right;
-    if(b >= fwdEnd){
+    if(b > fwdEnd){
       abF.push_back(temp);
       fwdEnd = a-1;
     }else{
@@ -206,7 +206,7 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     temp = Interval(-1,-1);
     auto c = chains[i].reverse.left;
     auto d = chains[i].reverse.right;
-    if(d >= bwdEnd){
+    if(d > bwdEnd){
       abR.push_back(temp);
       bwdEnd = c-1;
     }else{
@@ -218,6 +218,7 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     i++;
   }
   cout << "abF size: " << abF.size() << "abR size: " << abR.size() << endl;
+  cout << "abF end left: " << abF.back().left << "abR end left: " << abR.back().left << endl;
   auto temp2 = Interval_pair(-1,-1,-1,-1);
   if(abF.back().left != 0){
     temp2.forward.right = fwdEnd;
@@ -231,8 +232,10 @@ vector<Interval_pair> absentIntervalsV2(vector<Interval_pair> chains, BD_BWT_ind
     abR.push_back(temp2.reverse);
   }
   for(int i = 0; i < abF.size(); i++){
-    if(abF[i].right > idx1.size()-1 || abR[i].right > idx2.size()-1) continue;
+    //if(abF[i].right > idx1.size()-1 || abR[i].right > idx2.size()-1) continue;
     abRet.push_back(Interval_pair(abF[i], abR[i]));
+    cout << "Chain["<<i<<"]: " << chains[i].toString() << endl;
+    cout << "Absent["<<i<<"]: " << abRet.back().toString() << endl;
   }
   return abRet;
 }
@@ -241,6 +244,7 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
     return absentIntervalsV2(chains,idx1,idx2);
   }
   vector<Interval_pair> absents;
+  //vector<pair<Interval_pair,string>> both;
   int fwdLastEnd = idx1.size()-1;
   int bwdLastEnd = idx2.size()-1;
   Interval_pair temp = Interval_pair(-1, -1, -1, -1);
@@ -257,6 +261,8 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
       bwdLastEnd = chains[0].reverse.left-1;
     }
     absents.push_back(temp);
+    //both.push_back(make_pair(temp, "Absent"));
+    //both.push_back(make_pair(chains[0],"Chain"));
   }
   for(int i = 1; i < chains.size(); i++){
     //  int j = 1;
@@ -268,29 +274,37 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
     auto b = ch.forward.right;
     auto c = ch.reverse.left;
     auto d = ch.reverse.right;
-
+  //  cout << i << "FWDLastEnd: "<< fwdLastEnd << " BWDLastEnd: " << bwdLastEnd << "Current Chain: " << ch.toString() << endl;
     if(a == 0){
+//	    cout << "case one" << endl;
       temp.forward.left = fwdLastEnd;
       temp.forward.right = b-1;
     }
     if(b != fwdLastEnd){
+//	    cout << "case two" << endl;
       temp.forward.right = fwdLastEnd;
       temp.forward.left = b+1;
     }
     if(c == 0){
+//	    cout << "case three" << endl;
       temp.reverse.left = bwdLastEnd;
       temp.reverse.right = d-1;
     }
     if(d != bwdLastEnd){
+//	    cout << "case four" << endl;
       temp.reverse.right = bwdLastEnd;
       temp.reverse.left = d+1;
     }
     if(temp.forward.right < temp.forward.left){
+	    continue;
+//	    cout << "case five" << endl;
       int t = temp.forward.right;
       temp.forward.right = temp.forward.left;
       temp.forward.left = t;
     }
     if(temp.reverse.right < temp.reverse.left){
+	    continue;
+//	    cout << "case six" << endl;
       int t = temp.reverse.right;
       temp.reverse.right = temp.reverse.left;
       temp.reverse.left = t;
@@ -298,6 +312,10 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
     fwdLastEnd = a-1;
     bwdLastEnd = c-1;
     absents.push_back(temp);
+   // cout << endl;
+   // both.push_back(make_pair(temp,"Absent"));
+   // both.push_back(make_pair(chains[i], "Chain"));
+	
   }
   if(fwdLastEnd > 0 || bwdLastEnd > 0){ //Either side of the first(last) chain does not match the beginning of the input text.
     Interval_pair temp = Interval_pair(-1, -1, -1, -1);
@@ -310,7 +328,25 @@ vector<Interval_pair> absentIntervals(vector<Interval_pair> chains, BD_BWT_index
       temp.reverse.right = bwdLastEnd;
     }
     absents.push_back(temp);
+    //both.push_back(make_pair(temp,"Absent"));
   }
+  int lastEndF = idx1.size();
+  /*for(int a = 0; a < both.size(); a++){
+	  auto b = both[a];
+	  cout << b.second <<"\t"<< b.first.toString() << "\t" << lastEndF-b.first.forward.right-1 << endl;
+	  if(b.first.forward.left != -1){
+	  lastEndF = b.first.forward.left;
+	  }
+	  a++;
+	  if(a < both.size()){
+	  b = both[a];
+	  cout << b.second <<"\t"<< b.first.toString() << "\t" << lastEndF-b.first.forward.right-1 << endl << endl;
+	  if(b.first.forward.left != -1){
+	  lastEndF = b.first.forward.left;
+	  }
+	  }
+  }
+  cout << "return" << endl;*/
   return(absents);
 }
   

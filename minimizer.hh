@@ -68,7 +68,6 @@ bool mimCompareIndex (pair<string,int> first, pair<string,int> second){
 }
 
 
-unordered_map<string,pair<vector<int>,vector<int>>> minimap;
 struct minimizerStruct {
   string minimizer;
   vector<int> occ1;
@@ -77,6 +76,7 @@ struct minimizerStruct {
 pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerBlobbingUnique(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
   vector<pair<string,int>> retA;
   vector<pair<string,int>> retB;
+  unordered_map<string, pair<vector<int>,vector<int>>> minimap;
   auto smaller = ((m1.size() < m2.size())? m1.size() : m2.size());
   //cout << "Smaller =" << smaller << endl;
   for(int i = 0; i < smaller; i++){
@@ -109,22 +109,39 @@ pair<vector<pair<string,int>>,vector<pair<string,int>>> minimizerBlobbingUnique(
 }
 
 
-vector<tuple<int,int,int>> minimizerBlobbing(vector<pair<string,int>> m1, vector<pair<string,int>> m2){
+vector<tuple<int,int,int>> minimizerBlobbing(Configuration conf, vector<pair<string,int>> m1, vector<pair<string,int>> m2){
   vector<tuple<int,int,int>> retTuple;
+  map<string,vector<int>> minimapF;
+  map<string,vector<int>> minimapR;
   auto smaller = ((m1.size() < m2.size())? m1.size() : m2.size());
   //cout << "Smaller =" << smaller << endl;
   for(int i = 0; i < smaller; i++){
-      minimap[m1[i].first].first.push_back(m1[i].second);
-      minimap[m2[i].first].second.push_back(m2[i].second);
+      minimapF[m1[i].first].push_back(m1[i].second);
+      minimapR[m2[i].first].push_back(m2[i].second);
+
+ /*     if(m1[i].first != conf.text1.substr(m1[i].second, m1[i].first.length())){
+	      cout << "mismatch 1" << endl;
+      }else cout << "Pushed 1 " << conf.text1.substr(m1[i].second,m1[i].first.length()) << " With key " << m1[i].first << endl;
+
+      if(m2[i].first != conf.text2.substr(m2[i].second, m2[i].first.length())){
+	      cout << "mismatch 2" << endl;
+      }else cout << "Pushed 2 " << conf.text2.substr(m2[i].second,m2[i].first.length()) << " With key " << m2[i].first << endl;
+  */
   }
   if(m1.size() > smaller){
     for(int i = smaller; i < m1.size(); i++){
-      minimap[m1[i].first].first.push_back(m1[i].second);
-    }
+      minimapF[m1[i].first].push_back(m1[i].second);
+  /*    if(m1[i].first != conf.text1.substr(m1[i].second, m1[i].first.length())){
+	      cout << "mismatch 3" << endl;
+      }else cout << "Pushed 1 " << conf.text1.substr(m1[i].second,m1[i].first.length()) << " With key " << m1[i].first << endl;
+   */}
   }else if(m2.size() > smaller){
     for(int i = smaller; i < m2.size(); i++){
-      minimap[m2[i].first].second.push_back(m2[i].second);
-    }
+      minimapR[m2[i].first].push_back(m2[i].second);
+      /*if(m2[i].first != conf.text2.substr(m2[i].second, m2[i].first.length())){
+	      cout << "mismatch 4" << endl;
+      }else cout << "Pushed 2 " << conf.text2.substr(m2[i].second,m2[i].first.length()) << " With key " << m2[i].first << endl;
+    */}
   }
 
   // for(auto a : m1){
@@ -151,7 +168,7 @@ vector<tuple<int,int,int>> minimizerBlobbing(vector<pair<string,int>> m1, vector
   //vector<int> crossVector (m1.size()*m2.size(),-1);
   bool fancyType = false;
   if(fancyType){
-
+/*
       for(const auto &c : minimap){
         int alpha = c.second.first.size();
         int beta = c.second.second.size();
@@ -196,21 +213,43 @@ vector<tuple<int,int,int>> minimizerBlobbing(vector<pair<string,int>> m1, vector
           }
         }
       }
+      */
   }else{
-    for(const auto &c : minimap){ //O(|n|)
+    for(auto c : minimapF){ //O(|n|)
       auto minLen = c.first.length();
-      if(!(c.second.first.size() > 0 && c.second.second.size() > 0)){ //O(1)
-        continue;
-      }
-      for(auto i1 : c.second.first){ //O(k log n)
-        for(auto i2 : c.second.second){ 
-          //cout << "BlobTuple: " << i1 << ", " << i2 << ", " << minLen << endl;
+      //if(!(c.second.first.size() > 0 && c.second.second.size() > 0)){ //O(1)
+      //  continue;
+      //}
+      auto vec1 = c.second;
+      auto vec2 = minimapR[c.first];
+      int li1 = 0;
+      int li2 = 0;
+      int lminlen = 0;
+      for(int a = 0; a < vec1.size();a++){ //O(k log n)
+        for(int b = 0; b < vec2.size();b++){ 
+	  auto i1 = vec1[a];
+	  auto i2 = vec2[b];
+   	  if(li1 == i1 && li2 == i2 && lminlen == minLen){continue;}
+         // cout << "BlobTuple: " << i1 << ", " << i2 << ", " << minLen <<" Min: " << c.first << endl;
           retTuple.push_back(make_tuple(i1,i2,minLen-1)); //O(1)
+	  li1 = i1;
+	  li2 = i2;
+	  lminlen = minLen;
+	  auto str1 = conf.text1.substr(i1,minLen);
+	  auto str2 = conf.text2.substr(i2,minLen);
+
+	  /*cout << str1 << "\n <> \n" << str2 << endl;
+	  if(str1 != str2){
+		  cout << "Strings are not the same" << endl;
+	  }else{
+		  cout << "Strings are the same" << endl;
+	  }cout << endl;
+	  */
         }
       }
     }
   }
-  cout << "Done blobs" << endl;
+  //cout << "Done blobs" << endl;
   return retTuple;
 }
 vector<pair<string,int>> minimizers(string t1, int k, int w){

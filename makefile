@@ -10,7 +10,7 @@ all:
 debug:
 	g++  -fopenmp $(EDLIB) $(RMAX) $(BDBWT)io.hh -g $(BDBWT)util.hh -g $(BDBWT)rsa1d.hh -g -g $(BDBWT)driver.hh -g $(BDBWT)mem.hh -g $(BDBWT)minimizer.hh -g $(BDBWT)chaining.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14
 test:
-	g++  -fopenmp $(EDLIB) $(HEADERS) $(BDBWT)testSuite.cpp $(SDSL) -I ./$(BDBWT)edlib/include -o testSuite -std=c++14
+	g++  -fopenmp $(EDLIB) $(RMAX) $(HEADERS) $(BDBWT)testSuite.cpp $(SDSL) -I ./$(BDBWT)edlib/include -o testSuite -std=c++14
 prof:
 	g++  -fopenmp $(EDLIB) $(BDBWT)io.hh -g $(BDBWT)util.hh $(BDBWT)rsa1d.hh -g $(BDBWT)mem.hh $(BDBWT)minimizer.hh -g $(BDBWT)main.cpp -g $(SDSL) -I ./$(BDBWT)edlib/include -o main -std=c++14 -pg
 mutator:
