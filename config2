@@ -1,0 +1,16 @@
+Verbosity > 4
+Text1	> ../data/test/ecoli.fasta
+Index1	> 0
+Text2 	> ../data/test/heck.fastq
+Index2	> 0
+Mode 	> 0
+Depth	> 15
+Window 	> 15
+Mergers > 0
+BWTThrd > 1
+VerbCA  > 0
+VerbED > 0
+RawChain > 0
+strChain > 0
+recombAbs > 0
+linearRMQ > 0

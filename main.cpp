@@ -13,6 +13,7 @@
 #include "sdsl/rank_support.hpp"
 #include "sdsl/select_support.hpp"
 #include "driver.hh"
+#include "util.hh"
 using namespace std;
 
 int main(int argc, char *argv[]){
@@ -37,7 +38,6 @@ int main(int argc, char *argv[]){
   auto conf = readConfiguration(argv[1]);
   string text = conf.text1;
   string text2 = conf.text2;
-
   //auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0);
   auto edlibConf = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
   
@@ -56,7 +56,12 @@ int main(int argc, char *argv[]){
   conf.index1 = index;
   conf.index2 = index2;
   vector<Interval_pair> Ipairs;
-
+  auto LFmapping1 = mapLF(index, true).first;
+  auto LFmapping2 = mapLF(index2, true).first;
+  //for (auto p : LFmapping)
+  //{ 
+    //cout << p.first << ", " << p.second << endl;
+  //}
   set<char> alphabet;
   for(auto c : conf.text1){
     alphabet.insert(c);
@@ -64,11 +69,17 @@ int main(int argc, char *argv[]){
   conf.alphabet = alphabet;
 
   Ipairs = computeMemIntervals(conf);
-  auto chains = computeChains(conf, Ipairs);
-  auto chainintsP = computeChainIntervals(conf, chains, Ipairs);
-  auto chainints = chainintsP.first; 
-  auto absentEdits = computeEditDistancesForAbsentIntervals(conf, chainintsP, Ipairs, conf.verboseEditDistances).first;
-  auto combined = combine_MEM_and_absent_with_editDistances(conf, absentEdits, chainints, conf.printAbsentAndChains);
+  //for(auto i : Ipairs){
+      //cout << i.forward.left << "," << i.reverse.left << "," << i.forward.right-i.forward.left +1<< endl;
+      //cout << LFmapping1[i.reverse.left] << endl;
+      //cout << LFmapping2[i.forward.left] << endl;
+      //cout << "" << endl;
+    //}
+  //auto chains = computeChains(conf, Ipairs);
+  //auto chainintsP = computeChainIntervals(conf, chains, Ipairs);
+  //auto chainints = chainintsP.first; 
+  //auto absentEdits = computeEditDistancesForAbsentIntervals(conf, chainintsP, Ipairs, conf.verboseEditDistances).first;
+  //auto combined = combine_MEM_and_absent_with_editDistances(conf, absentEdits, chainints, conf.printAbsentAndChains);
 }
 
 

@@ -520,6 +520,7 @@ vector<struct occStruct> batchLocate(vector<struct occStruct>  pairs, vector<boo
       translate.push_back(temp);
     }
     i = LFindex[i];
+    //cout << i << "\n" << endl;
   }
 #pragma omp parallel sections
   {
@@ -662,7 +663,9 @@ vector<tuple<int,int,int>> bwt_to_int_tuples(Configuration conf, set<tuple<Inter
   else{
     mems = bwt_mem2(conf, BD_BWT_index<>::END);
   }
-
+  //auto LFindex2 = mapLF(mems, true).first;
+  //cout << "try to print LF index\n";
+  //cout << LFindex2 <<"\n";
   if(conf.verbosity > 2) cout << "found mems," << mems.size() << "...";
   sort(mems.begin(), mems.end(), memSort); //Proper sorting of the tuples with priority order of i --> d --> j
 

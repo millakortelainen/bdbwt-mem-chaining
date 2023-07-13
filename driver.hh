@@ -132,9 +132,11 @@ vector<Interval_pair> computeMemIntervals(Configuration conf){
   chrono::steady_clock::time_point mems_end = chrono::steady_clock::now();
   if(conf.verbosity > 2) printf("mems took %ld seconds\n", chrono::duration_cast<chrono::seconds>(mems_end - mems_begin).count());
   if(conf.verbosity > 3){
+    cout << "MEMs:" << endl;
     for(auto i : Ipairs){
-      cout << i.toString() << "\t";
-      cout << conf.text1.substr(i.forward.left, i.forward.right - i.forward.left+1) << endl;
+      //cout << i.toString() << "\t";
+      cout << i.forward.left << "," << i.reverse.left << "," << i.forward.right-i.forward.left +1<< endl;
+      //cout << conf.text1.substr(i.forward.left, i.forward.right - i.forward.left+1) << endl;
     }
   }
   return Ipairs;
